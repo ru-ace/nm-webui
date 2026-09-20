@@ -299,6 +299,47 @@ func (s *Server) handleConnectionsUpdate(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
+	if mapConType(req.Type) == "802-11-wireless" {
+		conn, err := s.nm.ConnectionByUUID(uuid)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		settings, err := conn.GetSettings()
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		wl := settings["802-11-wireless"]
+		if wl == nil {
+			wl = map[string]dbus.Variant{}
+			settings["802-11-wireless"] = wl
+		}
+		changed := false
+		if req.SSID != "" {
+			wl["ssid"] = dbus.MakeVariant([]byte(req.SSID))
+			changed = true
+		}
+		// A non-empty password stores a new PSK; an empty one leaves the
+		// existing credential untouched (the UI never sends the stored key).
+		if req.Password != "" {
+			wl["security"] = dbus.MakeVariant("802-11-wireless-security")
+			sec := settings["802-11-wireless-security"]
+			if sec == nil {
+				sec = map[string]dbus.Variant{}
+				settings["802-11-wireless-security"] = sec
+			}
+			sec["key-mgmt"] = dbus.MakeVariant("wpa-psk")
+			sec["psk"] = dbus.MakeVariant(req.Password)
+			changed = true
+		}
+		if changed {
+			if err := conn.Update(settings); err != nil {
+				httpError(w, err)
+				return
+			}
+		}
+	}
 	conn, _ := s.nm.ConnectionByUUID(uuid)
 	if conn == nil {
 		writeErr(w, http.StatusNotFound, "connection not found")

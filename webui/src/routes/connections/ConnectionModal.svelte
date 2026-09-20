@@ -62,7 +62,7 @@
       id: form.id,
       interface: form.interface,
       ...(known ? { type: form.type } : {}),
-      ...(form.type === 'wifi' && !editing ? { ssid: form.ssid, password: form.password } : {}),
+      ...(form.type === 'wifi' ? { ssid: form.ssid, password: form.password } : {}),
       ...(form.type === 'gsm'
         ? { apn: form.apn, number: form.number || '*99#', username: form.username, password: form.password, pin: form.pin }
         : {}),
@@ -95,6 +95,21 @@
     if (type === 'gsm') return 'modem';
     return 'database';
   }
+
+  function getTypeLabel(type: string) {
+    return ({ ethernet: 'Ethernet', wifi: 'Wi-Fi', bridge: 'Bridge', gsm: 'Mobile Broadband' } as Record<string, string>)[type] || type;
+  }
+
+  function getTypeIcon(type: string) {
+    if (type === 'wifi') return Wifi;
+    if (type === 'ethernet') return Cable;
+    if (type === 'gsm') return Smartphone;
+    return Database;
+  }
+
+  function nmTypeOf(type: string) {
+    return ({ ethernet: '802-3-ethernet', wifi: '802-11-wireless', bridge: 'bridge', gsm: 'gsm' } as Record<string, string>)[type] || type;
+  }
 </script>
 
 {#if show}
@@ -120,28 +135,34 @@
 
           <div>
             <div class="label"><span class="label-text">Type</span></div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'} disabled={!!editing}>
-                <Cable class="w-4 h-4" /> Ethernet
-              </button>
-              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'} disabled={!!editing}>
-                <Wifi class="w-4 h-4" /> Wi-Fi
-              </button>
-              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'} disabled={!!editing}>
-                <Database class="w-4 h-4" /> Bridge
-              </button>
-              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'gsm'} onclick={() => form.type = 'gsm'} disabled={!!editing}>
-                <Smartphone class="w-4 h-4" /> Mobile
-              </button>
-            </div>
-            {#if editing && !(typeOptions as readonly string[]).includes(form.type as any)}
-              <p class="text-sm text-base-content/60 mt-2">
-                Profile type <span class="font-mono">{form.type}</span> is not editable here — name and IP settings can still be changed.
-              </p>
+            {#if editing}
+              <div class="flex flex-wrap items-center gap-2 py-1.5">
+                <span class="badge badge-lg badge-primary gap-2">
+                  <svelte:component this={getTypeIcon(form.type)} class="w-4 h-4" />
+                  {getTypeLabel(form.type)}
+                </span>
+                <span class="font-mono text-sm text-base-content/60">{nmTypeOf(form.type)}</span>
+                <span class="text-xs text-base-content/50">{typeOptions.includes(form.type as any) ? 'not changeable while editing' : 'name and IP settings can still be changed'}</span>
+              </div>
+            {:else}
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'}>
+                  <Cable class="w-4 h-4" /> Ethernet
+                </button>
+                <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'}>
+                  <Wifi class="w-4 h-4" /> Wi-Fi
+                </button>
+                <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'}>
+                  <Database class="w-4 h-4" /> Bridge
+                </button>
+                <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'gsm'} onclick={() => form.type = 'gsm'}>
+                  <Smartphone class="w-4 h-4" /> Mobile
+                </button>
+              </div>
             {/if}
           </div>
 
-          {#if form.type === 'wifi' && !editing}
+          {#if form.type === 'wifi'}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="label"><span class="label-text">SSID</span></div>
@@ -149,12 +170,12 @@
               </div>
               <div>
                 <div class="label"><span class="label-text">Password (optional)</span></div>
-                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder="Wi-Fi password" />
+                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder={editing ? 'Leave empty to keep current password' : 'Wi-Fi password'} />
               </div>
             </div>
           {/if}
 
-          {#if form.type === 'gsm' && !editing}
+          {#if form.type === 'gsm'}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="label"><span class="label-text">APN</span></div>
@@ -170,11 +191,11 @@
               </div>
               <div>
                 <div class="label"><span class="label-text">Password (optional)</span></div>
-                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder="APN password" />
+                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder={editing ? 'Leave empty to keep current' : 'APN password'} />
               </div>
               <div>
                 <div class="label"><span class="label-text">SIM PIN (optional)</span></div>
-                <input bind:value={form.pin} type="password" class="input input-bordered w-full" placeholder="1234" />
+                <input bind:value={form.pin} type="password" class="input input-bordered w-full" placeholder={editing ? 'Leave empty to keep current' : '1234'} />
               </div>
             </div>
           {/if}
