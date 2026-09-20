@@ -85,6 +85,7 @@ export interface IPConfig {
 
 export interface NetworkInfo {
   ssid: string;
+  saved: boolean;
   signal: number;
   bssid?: string;
   security: string;

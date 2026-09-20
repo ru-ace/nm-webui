@@ -12,17 +12,17 @@ import (
 const (
 	apFlagPrivacy = 0x0001
 
-	wpaKeyMgmtPsk        = 0x00000100
-	wpaKeyMgmt8021x      = 0x00000200
-	wpaKeyMgmtSAE        = 0x00000800
-	wpaKeyMgmtOWE        = 0x00003000
+	wpaKeyMgmtPsk   = 0x00000100
+	wpaKeyMgmt8021x = 0x00000200
+	wpaKeyMgmtSAE   = 0x00000800
+	wpaKeyMgmtOWE   = 0x00003000
 )
 
 // AP is the D-Bus conterpart of org.freedesktop.NetworkManager.AccessPoint.
 type AP struct {
-	path      dbus.ObjectPath
-	c         *Client
-	obj       dbus.BusObject
+	path dbus.ObjectPath
+	c    *Client
+	obj  dbus.BusObject
 }
 
 func (c *Client) newAP(p dbus.ObjectPath) *AP {
@@ -211,15 +211,16 @@ func Channel(freq uint32) uint32 {
 
 // APInfo is a JSON-friendly representation of an access point.
 type APInfo struct {
-	SSID      string `json:"ssid"`
-	BSSID     string `json:"bssid"`
-	Signal    int    `json:"signal"`
-	SignalPct int    `json:"signal_pct"`
-	Frequency uint32 `json:"frequency"`
-	Band      string `json:"band,omitempty"`
-	Channel   uint32 `json:"channel"`
-	Security  string `json:"security"`
-	LastSeen  int32  `json:"last_seen"`
+	SSID       string `json:"ssid"`
+	Saved      bool   `json:"saved"`
+	BSSID      string `json:"bssid"`
+	Signal     int    `json:"signal"`
+	SignalPct  int    `json:"signal_pct"`
+	Frequency  uint32 `json:"frequency"`
+	Band       string `json:"band,omitempty"`
+	Channel    uint32 `json:"channel"`
+	Security   string `json:"security"`
+	LastSeen   int32  `json:"last_seen"`
 	MaxBitrate uint32 `json:"max_bitrate,omitempty"`
 }
 

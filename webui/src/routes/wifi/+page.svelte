@@ -45,7 +45,9 @@
 
   async function handleConnect(network: any) {
     if (!selectedIface) return;
-    if (network.security !== 'open') {
+    if (network.saved) {
+      await connectWifi(selectedIface, network.ssid);
+    } else if (network.security !== 'open') {
       const password = await showPasswordModal(network.ssid);
       if (password === null) return;
       await connectWifi(selectedIface, network.ssid, password);

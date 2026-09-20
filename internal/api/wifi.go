@@ -39,14 +39,15 @@ func (s *Server) handleWifiScan(w http.ResponseWriter, r *http.Request) {
 
 // groupedNetwork is one entry per SSID (best BSSID), with all BSSIDs attached.
 type groupedNetwork struct {
-	SSID     string       `json:"ssid"`
-	Signal   int          `json:"signal"`
-	BSSID    string       `json:"bssid,omitempty"`
-	Security string       `json:"security"`
-	Band     string       `json:"band,omitempty"`
-	Channel  uint32       `json:"channel"`
+	SSID      string      `json:"ssid"`
+	Saved     bool        `json:"saved"`
+	Signal    int         `json:"signal"`
+	BSSID     string      `json:"bssid,omitempty"`
+	Security  string      `json:"security"`
+	Band      string      `json:"band,omitempty"`
+	Channel   uint32      `json:"channel"`
 	Frequency uint32      `json:"frequency"`
-	BSSIDs   []nm.APInfo  `json:"bssids,omitempty"`
+	BSSIDs    []nm.APInfo `json:"bssids,omitempty"`
 }
 
 func groupBySSID(aps []nm.APInfo, group bool) []interface{} {
@@ -65,13 +66,14 @@ func groupBySSID(aps []nm.APInfo, group bool) []interface{} {
 		}
 		g, ok := bySSID[ap.SSID]
 		if !ok {
-			g = &groupedNetwork{SSID: ap.SSID, Security: ap.Security}
+			g = &groupedNetwork{SSID: ap.SSID, Saved: ap.Saved, Security: ap.Security}
 			bySSID[ap.SSID] = g
 			order = append(order, ap.SSID)
 		}
 		// prefer stronger BSSID as representation
 		if ap.Signal > g.Signal {
 			g.Signal = ap.Signal
+			g.Saved = ap.Saved
 			g.BSSID = ap.BSSID
 			g.Security = ap.Security
 			g.Band = ap.Band
@@ -101,11 +103,17 @@ func (s *Server) handleWifiNetworks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	infos := make([]nm.APInfo, 0, len(aps))
+	saved, err := s.savedWiFiSSIDs()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
 	for _, ap := range aps {
 		info, err := ap.Info()
 		if err != nil {
 			continue
 		}
+		info.Saved = saved[info.SSID]
 		infos = append(infos, info)
 	}
 	sort.Slice(infos, func(i, j int) bool { return infos[i].Signal > infos[j].Signal })
@@ -113,6 +121,24 @@ func (s *Server) handleWifiNetworks(w http.ResponseWriter, r *http.Request) {
 	group := r.URL.Query().Get("group") != "0"
 	networks := groupBySSID(infos, group)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"networks": networks})
+}
+
+func (s *Server) savedWiFiSSIDs() (map[string]bool, error) {
+	conns, err := s.nm.ListConnections()
+	if err != nil {
+		return nil, err
+	}
+	saved := make(map[string]bool)
+	for _, conn := range conns {
+		info, err := conn.Info()
+		if err != nil {
+			continue
+		}
+		if info.IsWiFi && info.SSID != "" {
+			saved[info.SSID] = true
+		}
+	}
+	return saved, nil
 }
 
 func (s *Server) handleWifiStatus(w http.ResponseWriter, r *http.Request) {
