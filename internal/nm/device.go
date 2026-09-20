@@ -74,11 +74,21 @@ func (c *Client) WiFiDevices() ([]*Device, error) {
 	return out, nil
 }
 
-// Interface returns the device interface name (IpInterface).
+// Interface returns the primary kernel interface name.
 func (d *Device) Interface() (string, error) { return d.c.propString(d.obj, DeviceIf, "Interface") }
 
 // IpInterface returns IpInterface (may differ from Interface for VLANs).
 func (d *Device) IpInterface() (string, error) { return d.c.propString(d.obj, DeviceIf, "IpInterface") }
+
+// InterfaceName returns the stable device interface name. NetworkManager's
+// IpInterface may be empty or transient during disconnect, so prefer the
+// primary Interface property and use IpInterface only as a fallback.
+func (d *Device) InterfaceName() (string, error) {
+	if name, err := d.Interface(); err == nil && name != "" {
+		return name, nil
+	}
+	return d.IpInterface()
+}
 
 // Type returns the device type id.
 func (d *Device) Type() (uint32, error) { return d.c.propUint32(d.obj, DeviceIf, "DeviceType") }
@@ -143,10 +153,10 @@ type Address struct {
 
 // IPConfig holds parsed IPv4/IPv6 configuration.
 type IPConfig struct {
-	Addresses  []Address `json:"addresses,omitempty"`
-	Gateway    string    `json:"gateway,omitempty"`
-	Nameservers []string `json:"nameservers,omitempty"`
-	Domains    []string  `json:"domains,omitempty"`
+	Addresses   []Address `json:"addresses,omitempty"`
+	Gateway     string    `json:"gateway,omitempty"`
+	Nameservers []string  `json:"nameservers,omitempty"`
+	Domains     []string  `json:"domains,omitempty"`
 }
 
 // IP4Config reads and parses the device's IPv4 configuration.
@@ -338,9 +348,7 @@ func (d *Device) Info() (DeviceInfo, error) {
 		Path:     string(d.Path()),
 		Wireless: false,
 	}
-	if s, err := d.IpInterface(); err == nil {
-		info.Interface = s
-	} else if s, err := d.Interface(); err == nil {
+	if s, err := d.InterfaceName(); err == nil {
 		info.Interface = s
 	}
 	if t, err := d.Type(); err == nil {

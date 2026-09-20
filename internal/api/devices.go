@@ -17,7 +17,7 @@ func (s *Server) visibleDevices() ([]*nm.Device, error) {
 	}
 	out := make([]*nm.Device, 0, len(devs))
 	for _, d := range devs {
-		name, err := d.IpInterface()
+		name, err := d.InterfaceName()
 		if err != nil {
 			continue
 		}
@@ -93,7 +93,7 @@ func (s *Server) handleDeviceUp(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "device not found")
 		return
 	}
-	name, _ := dev.IpInterface()
+	name, _ := dev.InterfaceName()
 	if err := s.upIgnoredDevice(name, dev); err != nil {
 		httpError(w, err)
 		return

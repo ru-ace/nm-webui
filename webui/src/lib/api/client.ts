@@ -18,7 +18,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   system: {
-    status: () => request<SystemStatus>('/system/status')
+    status: () => request<SystemStatus>('/system/status'),
+    refreshExternalIP: () => request<Pick<SystemStatus, 'external_ip' | 'external_ip_status' | 'external_ip_checked_at'>>('/system/external-ip/refresh', { method: 'POST' })
   },
   devices: {
     list: () => request<{ devices: DeviceInfo[] }>('/devices'),
@@ -54,7 +55,9 @@ export interface SystemStatus {
   connectivity_code: number;
   networking_enabled: boolean;
   primary_gateway: string;
-  external_ip: string;
+  external_ip: string | null;
+  external_ip_status: 'fresh' | 'cached' | 'unavailable';
+  external_ip_checked_at: string;
   time: string;
 }
 

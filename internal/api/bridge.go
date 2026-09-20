@@ -110,7 +110,7 @@ func (s *Server) ifaceOfSignal(path dbus.ObjectPath) string {
 	if err != nil {
 		return ""
 	}
-	name, err := dev.IpInterface()
+	name, err := dev.InterfaceName()
 	if err != nil {
 		return ""
 	}

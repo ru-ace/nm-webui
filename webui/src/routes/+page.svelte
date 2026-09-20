@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Shield, Zap, Loader2, ChevronDown, ChevronUp } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Shield, Zap, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -8,6 +8,7 @@
     connectivityStatus,
     isOnline,
     loading,
+    refreshExternalIP,
     loadWifiStatus,
     disconnectDevice,
     connectDevice
@@ -87,11 +88,41 @@
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-base-content/60">External IP</p>
-            <p class="font-mono text-lg font-medium">{$systemStatus?.external_ip || '—'}</p>
+           <div class="min-w-0">
+             <p class="text-sm text-base-content/60">External IP</p>
+            {#if $systemStatus?.external_ip}
+              <a
+                class="font-mono text-lg font-medium link link-primary"
+                href={`https://www.iplocation.net/ip-lookup?query=${encodeURIComponent($systemStatus.external_ip)}`}
+                target="_blank"
+                rel="noreferrer"
+              >{$systemStatus.external_ip}</a>
+            {:else}
+              <p class="font-mono text-lg font-medium">Unavailable</p>
+            {/if}
+            <p class="text-xs text-base-content/50">
+              {#if $systemStatus?.external_ip_status === 'cached'}
+                Cached result
+              {:else if $systemStatus?.external_ip_status === 'fresh'}
+                Verified via HTTPS
+              {:else}
+                {$isOnline ? 'HTTPS check failed' : 'Internet unavailable'}
+              {/if}
+            </p>
           </div>
-          <Shield class="w-12 h-12 text-base-content/20" />
+          <div class="relative h-12 w-12 shrink-0">
+            <Shield class="h-12 w-12 text-base-content/20" />
+            <button
+              type="button"
+              class="absolute inset-0 flex items-center justify-center rounded-full text-base-content/60 transition-colors hover:bg-base-200 hover:text-primary disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-base-content/60"
+              onclick={refreshExternalIP}
+              disabled={!$isOnline || $loading['external-ip']}
+              title={$isOnline ? 'Refresh external IP' : 'Internet is unavailable'}
+              aria-label="Refresh external IP"
+            >
+              <RefreshCw class="h-5 w-5 {$loading['external-ip'] ? 'animate-spin' : ''}" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

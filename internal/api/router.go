@@ -49,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 		r.Use(BasicAuth(s.cfg))
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/system/status", s.handleSystemStatus)
+			r.Post("/system/external-ip/refresh", s.handleExternalIPRefresh)
 			r.Get("/devices", s.handleDeviceList)
 			r.Get("/devices/{iface}", s.handleDeviceGet)
 			r.Post("/devices/{iface}/disconnect", s.handleDeviceDisconnect)

@@ -62,7 +62,7 @@ func (c *Client) ActiveUUIDs() (map[string]ActiveRef, error) {
 		if devs, err := obj.GetProperty(ActiveConnIf + ".Devices"); err == nil {
 			if paths, ok := devs.Value().([]dbus.ObjectPath); ok && len(paths) > 0 {
 				if d, err := c.DeviceFromPath(paths[0]); err == nil {
-					ref.Iface, _ = d.IpInterface()
+					ref.Iface, _ = d.InterfaceName()
 				}
 			}
 		}

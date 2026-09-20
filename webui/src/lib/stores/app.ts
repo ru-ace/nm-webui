@@ -30,6 +30,20 @@ export async function loadSystemStatus() {
   }
 }
 
+export async function refreshExternalIP() {
+  try {
+    setLoading('external-ip', true);
+    await api.system.refreshExternalIP();
+    await loadSystemStatus();
+    showToast('External IP cache refreshed', 'success');
+  } catch (e: any) {
+    console.error('Failed to refresh external IP:', e);
+    showToast(`Failed to refresh external IP: ${e?.message || e}`, 'error');
+  } finally {
+    setLoading('external-ip', false);
+  }
+}
+
 export async function loadDevices() {
   try {
     setLoading('devices', true);
