@@ -295,6 +295,13 @@ export function initEventSource() {
   return es;
 }
 
+// isCurrentWifiIface reports whether iface is still present as a managed
+// wireless device in the latest known device list.
+function isCurrentWifiIface(iface: string) {
+  if (!iface) return false;
+  return get(devices).some((d) => d.wireless && d.interface === iface);
+}
+
 function handleEvent(type: string, data: any) {
   switch (type) {
     case 'connectivity_changed':
@@ -305,6 +312,17 @@ function handleEvent(type: string, data: any) {
       loadSystemStatus();
       break;
     case 'scan_done':
+      // Ignore stale events for interfaces that no longer exist (e.g. after
+      // unplugging a USB Wi-Fi adapter), otherwise the subsequent network
+      // request fails with a misleading error toast.
+      if (!isCurrentWifiIface(data.iface)) {
+        const stale = pendingScans.get(data.iface);
+        if (stale) {
+          pendingScans.delete(data.iface);
+          stale.reject(new Error('Wi-Fi device was removed'));
+        }
+        break;
+      }
       const pending = pendingScans.get(data.iface);
       if (pending) {
         pendingScans.delete(data.iface);
@@ -314,7 +332,9 @@ function handleEvent(type: string, data: any) {
       }
       break;
     case 'wifi_networks_changed':
-      void loadWifiNetworks(data.iface);
+      if (isCurrentWifiIface(data.iface)) {
+        void loadWifiNetworks(data.iface);
+      }
       break;
     case 'connections_changed':
       loadConnections();
