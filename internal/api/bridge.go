@@ -18,6 +18,8 @@ func (s *Server) startBridge(ctx context.Context) error {
 		{dbus.WithMatchInterface(nm.NmIfName)},
 		{dbus.WithMatchInterface(nm.DeviceIf), dbus.WithMatchMember("StateChanged")},
 		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("ScanDone")},
+		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("AccessPointAdded")},
+		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("AccessPointRemoved")},
 		{dbus.WithMatchInterface(nm.SettingsIfName)},
 	}
 	ch, cleanup, err := s.nm.WatchMany(matchRules...)
@@ -87,6 +89,10 @@ func (s *Server) dispatch(sig *dbus.Signal) {
 
 	case nm.WirelessIf + ".ScanDone":
 		s.hub.Publish("scan_done", map[string]interface{}{
+			"iface": s.ifaceOfSignal(sig.Path),
+		})
+	case nm.WirelessIf + ".AccessPointAdded", nm.WirelessIf + ".AccessPointRemoved":
+		s.hub.Publish("wifi_networks_changed", map[string]interface{}{
 			"iface": s.ifaceOfSignal(sig.Path),
 		})
 

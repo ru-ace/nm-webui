@@ -57,6 +57,11 @@ export async function loadWifiNetworks(iface: string) {
   }
 }
 
+async function refreshWifiNetworksAfterScan(iface: string) {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  await loadWifiNetworks(iface);
+}
+
 export async function triggerScan(iface: string) {
   setLoading(`wifi-${iface}`, true);
   showToast('Scanning...', 'info');
@@ -240,6 +245,7 @@ export function initEventSource() {
     'connectivity_changed',
     'device_state_changed',
     'scan_done',
+    'wifi_networks_changed',
     'connections_changed',
     'wifi_connected',
     'wifi_failed',
@@ -285,12 +291,16 @@ function handleEvent(type: string, data: any) {
       loadSystemStatus();
       break;
     case 'scan_done':
-      loadWifiNetworks(data.iface);
       const pending = pendingScans.get(data.iface);
       if (pending) {
         pendingScans.delete(data.iface);
-        pending.resolve();
+        void refreshWifiNetworksAfterScan(data.iface).then(pending.resolve, pending.reject);
+      } else {
+        void refreshWifiNetworksAfterScan(data.iface);
       }
+      break;
+    case 'wifi_networks_changed':
+      void loadWifiNetworks(data.iface);
       break;
     case 'connections_changed':
       loadConnections();
