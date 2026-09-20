@@ -35,6 +35,7 @@ export async function loadDevices() {
     setLoading('devices', true);
     const { devices: devs } = await api.devices.list();
     devices.set(devs);
+    await Promise.all(devs.filter((d) => d.wireless).map((d) => loadWifiStatus(d.interface)));
   } catch (e) {
     console.error('Failed to load devices:', e);
     showToast('Failed to load devices', 'error');
@@ -243,6 +244,7 @@ export function initEventSource() {
     'wifi_connected',
     'wifi_failed',
     'manager_state_changed',
+    'devices_changed',
   ];
 
   for (const type of eventTypes) {
@@ -292,6 +294,9 @@ function handleEvent(type: string, data: any) {
       break;
     case 'connections_changed':
       loadConnections();
+      break;
+    case 'devices_changed':
+      loadDevices();
       break;
     case 'wifi_connected':
       showToast(`Connected to ${data.ssid}`, 'success');

@@ -11,33 +11,37 @@ import (
 
 // Connect errors surfaced to the API layer.
 var (
-	ErrConnectTimeout  = errors.New("connection timed out")
-	ErrAuthFailed      = errors.New("authentication failed: invalid password")
-	ErrDeviceFailed    = errors.New("device failed while connecting")
-	ErrNoActiveConn    = errors.New("no active connection")
+	ErrConnectTimeout   = errors.New("connection timed out")
+	ErrAuthFailed       = errors.New("authentication failed: invalid password")
+	ErrDeviceFailed     = errors.New("device failed while connecting")
+	ErrNoActiveConn     = errors.New("no active connection")
 	ErrNotConnectedSSID = errors.New("already connected to another network")
 )
 
-func newUUID() string { return NewUUID() }
+func newUUID() (string, error) { return NewUUID() }
 
 // NewUUID generates a random RFC 4122 version 4 UUID string.
-func NewUUID() string {
+func NewUUID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "00000000-0000-4000-8000-000000000000"
+		return "", fmt.Errorf("generate UUID: %w", err)
 	}
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
 }
 
 // BuildWiFiSettings constructs the D-Bus settings block for a wifi profile.
-func BuildWiFiSettings(ssid, password string) map[string]map[string]dbus.Variant {
+func BuildWiFiSettings(ssid, password string) (map[string]map[string]dbus.Variant, error) {
+	uuid, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
 	settings := map[string]map[string]dbus.Variant{
 		"connection": {
 			"type":        dbus.MakeVariant("802-11-wireless"),
 			"id":          dbus.MakeVariant(ssid),
-			"uuid":        dbus.MakeVariant(newUUID()),
+			"uuid":        dbus.MakeVariant(uuid),
 			"autoconnect": dbus.MakeVariant(true),
 		},
 		"802-11-wireless": {
@@ -58,7 +62,7 @@ func BuildWiFiSettings(ssid, password string) map[string]map[string]dbus.Variant
 			"psk":      dbus.MakeVariant(password),
 		}
 	}
-	return settings
+	return settings, nil
 }
 
 // FindWiFiConnection locates a saved profile with the given SSID.
@@ -163,7 +167,10 @@ func (c *Client) ConnectWiFi(dev *Device, ssid, password string, timeout time.Du
 		conn = existing
 		ac, err = c.ActivateConnection(conn, dev, "/")
 	} else {
-		settings := BuildWiFiSettings(ssid, password)
+		settings, err := BuildWiFiSettings(ssid, password)
+		if err != nil {
+			return nil, nil, err
+		}
 		conn, ac, err = c.AddAndActivateConnection(settings, dev, "/")
 	}
 	if err != nil {

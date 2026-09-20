@@ -24,18 +24,23 @@
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     selectedIface = params.get('iface') || '';
-    if (!selectedIface && wifiDevices.length > 0) {
-      selectedIface = wifiDevices[0].interface;
-      navigate(`/wifi?iface=${selectedIface}`);
-    }
     if (selectedIface) loadWifiNetworks(selectedIface);
   });
+
+  $: if (!selectedIface && wifiDevices.length > 0) {
+    selectedIface = wifiDevices[0].interface;
+    navigate(`/wifi?iface=${selectedIface}`);
+    loadWifiNetworks(selectedIface);
+  }
 
   async function handleScan() {
     if (!selectedIface) return;
     scanning = true;
-    await triggerScan(selectedIface);
-    scanning = false;
+    try {
+      await triggerScan(selectedIface);
+    } finally {
+      scanning = false;
+    }
   }
 
   async function handleConnect(network: any) {

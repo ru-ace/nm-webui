@@ -10,6 +10,8 @@
     id: '',
     interface: '',
     type: 'ethernet',
+    ssid: '',
+    password: '',
     autoconnect: true,
     ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' },
     ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' }
@@ -21,6 +23,8 @@
       id: editing.id,
       interface: editing.interface || '',
       type: editing.type === '802-11-wireless' ? 'wifi' : (editing.type === '802-3-ethernet' ? 'ethernet' : editing.type),
+      ssid: editing.ssid || '',
+      password: '',
       autoconnect: editing.autoconnect,
       ipv4: { method: editing.ipv4_method, address: editing.static4?.address || '', prefix: editing.static4?.prefix || 24, gateway: editing.static4?.gateway || '', dns: editing.static4?.dns?.join(', ') || '' },
       ipv6: { method: editing.ipv6_method, address: editing.static6?.address || '', prefix: editing.static6?.prefix || 64, gateway: editing.static6?.gateway || '', dns: editing.static6?.dns?.join(', ') || '' }
@@ -33,6 +37,7 @@
       id: form.id,
       interface: form.interface,
       type: form.type,
+      ...(form.type === 'wifi' && !editing ? { ssid: form.ssid, password: form.password } : {}),
       autoconnect: form.autoconnect,
       ipv4: form.ipv4.method !== 'auto' ? { method: form.ipv4.method, address: form.ipv4.address, prefix: Number(form.ipv4.prefix), gateway: form.ipv4.gateway, dns: form.ipv4.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' },
       ipv6: form.ipv6.method !== 'auto' ? { method: form.ipv6.method, address: form.ipv6.address, prefix: Number(form.ipv6.prefix), gateway: form.ipv6.gateway, dns: form.ipv6.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' }
@@ -48,7 +53,7 @@
   function close() {
     show = false;
     editing = null;
-    form = { id: '', interface: '', type: 'ethernet', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
+    form = { id: '', interface: '', type: 'ethernet', ssid: '', password: '', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
     submitting = false;
   }
 
@@ -71,29 +76,42 @@
         <div class="grid gap-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="label"><span class="label-text">Profile Name</span></label>
+              <div class="label"><span class="label-text">Profile Name</span></div>
               <input bind:value={form.id} class="input input-bordered w-full" required placeholder="My Connection" />
             </div>
             <div>
-              <label class="label"><span class="label-text">Interface (optional)</span></label>
+              <div class="label"><span class="label-text">Interface (optional)</span></div>
               <input bind:value={form.interface} class="input input-bordered w-full" placeholder="eth0, wlan0" />
             </div>
           </div>
 
           <div>
-            <label class="label"><span class="label-text">Type</span></label>
+            <div class="label"><span class="label-text">Type</span></div>
             <div class="flex gap-2">
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'}>
+              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'} disabled={!!editing}>
                 <Cable class="w-4 h-4" /> Ethernet
               </button>
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'}>
+              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'} disabled={!!editing}>
                 <Wifi class="w-4 h-4" /> Wi-Fi
               </button>
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'}>
+              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'} disabled={!!editing}>
                 <Database class="w-4 h-4" /> Bridge
               </button>
             </div>
           </div>
+
+          {#if form.type === 'wifi' && !editing}
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <div class="label"><span class="label-text">SSID</span></div>
+                <input bind:value={form.ssid} class="input input-bordered w-full" required placeholder="Network name" />
+              </div>
+              <div>
+                <div class="label"><span class="label-text">Password (optional)</span></div>
+                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder="Wi-Fi password" />
+              </div>
+            </div>
+          {/if}
 
           <div class="grid grid-cols-2 gap-4">
             <fieldset class="fieldset">
@@ -107,18 +125,18 @@
                 {#if form.ipv4.method === 'manual'}
                   <div class="grid grid-cols-2 gap-3">
                     <div>
-                      <label class="label"><span class="label-text">Address / Prefix</span></label>
+                      <div class="label"><span class="label-text">Address / Prefix</span></div>
                       <div class="flex gap-2">
                         <input bind:value={form.ipv4.address} class="input input-bordered flex-1" placeholder="192.168.1.100" required />
                         <input bind:value={form.ipv4.prefix} type="number" min="0" max="32" class="input input-bordered w-20" required />
                       </div>
                     </div>
                     <div>
-                      <label class="label"><span class="label-text">Gateway</span></label>
+                      <div class="label"><span class="label-text">Gateway</span></div>
                       <input bind:value={form.ipv4.gateway} class="input input-bordered" placeholder="192.168.1.1" />
                     </div>
                     <div class="col-span-2">
-                      <label class="label"><span class="label-text">DNS (comma separated)</span></label>
+                      <div class="label"><span class="label-text">DNS (comma separated)</span></div>
                       <input bind:value={form.ipv4.dns} class="input input-bordered" placeholder="1.1.1.1, 8.8.8.8" />
                     </div>
                   </div>
@@ -137,18 +155,18 @@
                 {#if form.ipv6.method === 'manual'}
                   <div class="grid grid-cols-2 gap-3">
                     <div>
-                      <label class="label"><span class="label-text">Address / Prefix</span></label>
+                      <div class="label"><span class="label-text">Address / Prefix</span></div>
                       <div class="flex gap-2">
                         <input bind:value={form.ipv6.address} class="input input-bordered flex-1" placeholder="2001:db8::1" required />
                         <input bind:value={form.ipv6.prefix} type="number" min="0" max="128" class="input input-bordered w-20" required />
                       </div>
                     </div>
                     <div>
-                      <label class="label"><span class="label-text">Gateway</span></label>
+                      <div class="label"><span class="label-text">Gateway</span></div>
                       <input bind:value={form.ipv6.gateway} class="input input-bordered" placeholder="2001:db8::1" />
                     </div>
                     <div class="col-span-2">
-                      <label class="label"><span class="label-text">DNS (comma separated)</span></label>
+                      <div class="label"><span class="label-text">DNS (comma separated)</span></div>
                       <input bind:value={form.ipv6.dns} class="input input-bordered" placeholder="2606:4700:4700::1111" />
                     </div>
                   </div>

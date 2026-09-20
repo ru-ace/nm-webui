@@ -28,30 +28,34 @@ func NewResolver() *Resolver {
 // lookup. It never blocks the caller for longer than timeout.
 func (r *Resolver) Get(ctx context.Context, timeout time.Duration) (string, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if r.last != "" && time.Since(r.stale) < r.ttl {
-		return r.last, nil
+		last := r.last
+		r.mu.Unlock()
+		return last, nil
 	}
+	last := r.last
+	r.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	records, err := net.DefaultResolver.LookupTXT(ctx, externalIPTXT)
 	if err != nil {
-		if r.last != "" {
-			return r.last, nil // serve stale data offline
+		if last != "" {
+			return last, nil // serve stale data offline
 		}
 		return "", err
 	}
 	for _, rec := range records {
 		if ip := net.ParseIP(rec); ip != nil {
+			r.mu.Lock()
 			r.last = rec
 			r.stale = time.Now()
+			r.mu.Unlock()
 			return rec, nil
 		}
 	}
-	if r.last != "" {
-		return r.last, nil
+	if last != "" {
+		return last, nil
 	}
 	return "", errNoExternalIP
 }

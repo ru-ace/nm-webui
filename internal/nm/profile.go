@@ -136,15 +136,29 @@ func (c *Client) DeleteProfile(uuid string) error {
 // profile keeping all other settings untouched.
 func (c *Client) UpdateProfileIPv4(uuid string, block map[string]dbus.Variant) error {
 	return c.updateProfileSettings(uuid, func(s map[string]map[string]dbus.Variant) {
-		s["ipv4"] = block
+		mergeIPSettings(s, "ipv4", block)
 	})
 }
 
 // UpdateProfileIPv6 applies an IPv6 configuration to a profile.
 func (c *Client) UpdateProfileIPv6(uuid string, block map[string]dbus.Variant) error {
 	return c.updateProfileSettings(uuid, func(s map[string]map[string]dbus.Variant) {
-		s["ipv6"] = block
+		mergeIPSettings(s, "ipv6", block)
 	})
+}
+
+func mergeIPSettings(settings map[string]map[string]dbus.Variant, family string, block map[string]dbus.Variant) {
+	current := settings[family]
+	if current == nil {
+		current = map[string]dbus.Variant{}
+		settings[family] = current
+	}
+	for _, key := range []string{"method", "dhcp-timeout", "address-data", "addresses", "gateway", "dns", "ignore-auto-dns"} {
+		delete(current, key)
+	}
+	for key, value := range block {
+		current[key] = value
+	}
 }
 
 // UpdateProfile autoconnect flips the autoconnect flag.

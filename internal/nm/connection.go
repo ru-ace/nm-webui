@@ -19,11 +19,11 @@ func (d *Device) AvailableConnections() ([]*Connection, error) {
 	var paths []dbus.ObjectPath
 	v, err := d.obj.GetProperty(DeviceIf + ".AvailableConnections")
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	paths, ok := v.Value().([]dbus.ObjectPath)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("AvailableConnections: unexpected type %T", v.Value())
 	}
 	out := make([]*Connection, 0, len(paths))
 	for _, p := range paths {
@@ -116,27 +116,27 @@ type StaticConfig struct {
 
 // ConnectionInfo is a JSON-friendly profile description.
 type ConnectionInfo struct {
-	Path         string        `json:"path"`
-	UUID         string        `json:"uuid"`
-	ID           string        `json:"id"`
-	Type         string        `json:"type"`
-	TypeName     string        `json:"type_name"`
-	Interface    string        `json:"interface,omitempty"`
-	SSID         string        `json:"ssid,omitempty"`
-	Autoconnect  bool          `json:"autoconnect"`
-	Active       bool          `json:"active"`
-	Device       string        `json:"device,omitempty"`
-	IPv4Method   string        `json:"ipv4_method"`
-	IPv6Method   string        `json:"ipv6_method"`
-	Static4      *StaticConfig `json:"static4,omitempty"`
-	Static6      *StaticConfig `json:"static6,omitempty"`
-	IsWiFi       bool          `json:"is_wifi"`
+	Path        string        `json:"path"`
+	UUID        string        `json:"uuid"`
+	ID          string        `json:"id"`
+	Type        string        `json:"type"`
+	TypeName    string        `json:"type_name"`
+	Interface   string        `json:"interface,omitempty"`
+	SSID        string        `json:"ssid,omitempty"`
+	Autoconnect bool          `json:"autoconnect"`
+	Active      bool          `json:"active"`
+	Device      string        `json:"device,omitempty"`
+	IPv4Method  string        `json:"ipv4_method"`
+	IPv6Method  string        `json:"ipv6_method"`
+	Static4     *StaticConfig `json:"static4,omitempty"`
+	Static6     *StaticConfig `json:"static6,omitempty"`
+	IsWiFi      bool          `json:"is_wifi"`
 }
 
 // Info parses the connection settings into ConnectionInfo.
 func (co *Connection) Info() (ConnectionInfo, error) {
 	info := ConnectionInfo{
-		Path:     string(co.path),
+		Path:       string(co.path),
 		IPv4Method: "auto",
 		IPv6Method: "auto",
 	}
@@ -170,7 +170,8 @@ func (co *Connection) Info() (ConnectionInfo, error) {
 			}
 		}
 		if info.Interface == "" {
-			info.Interface = variantString(w, "mac-address")
+			// A profile without interface-name is valid for any compatible device.
+			// The wireless MAC is not an interface name.
 		}
 	}
 
@@ -311,7 +312,9 @@ func (c *Client) AddAndActivateConnection(settings map[string]map[string]dbus.Va
 func (ac *ActiveConnection) Path() dbus.ObjectPath { return ac.path }
 
 // State returns the active connection state.
-func (ac *ActiveConnection) State() (uint32, error) { return ac.c.propUint32(ac.obj, ActiveConnIf, "State") }
+func (ac *ActiveConnection) State() (uint32, error) {
+	return ac.c.propUint32(ac.obj, ActiveConnIf, "State")
+}
 
 // StateReason returns (state, reason).
 func (ac *ActiveConnection) StateReason() (uint32, uint32, error) {

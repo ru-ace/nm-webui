@@ -135,6 +135,8 @@ export interface ConnectionRequest {
   interface: string;
   autoconnect?: boolean;
   type: string;
+  ssid?: string;
+  password?: string;
   ipv4?: IPConfigRequest;
   ipv6?: IPConfigRequest;
 }

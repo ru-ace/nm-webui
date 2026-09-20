@@ -25,6 +25,8 @@ type connRequest struct {
 	Interface   string     `json:"interface"`
 	Autoconnect *bool      `json:"autoconnect"`
 	Type        string     `json:"type"`
+	SSID        string     `json:"ssid"`
+	Password    string     `json:"password"`
 	IPv4        *ipSetting `json:"ipv4"`
 	IPv6        *ipSetting `json:"ipv6"`
 }
@@ -90,17 +92,39 @@ func (s *Server) handleConnectionsCreate(w http.ResponseWriter, r *http.Request)
 	if req.Type == "" {
 		req.Type = "ethernet"
 	}
+	uuid, err := nm.NewUUID()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
 
 	settings := map[string]map[string]dbus.Variant{
 		"connection": {
 			"type":        dbus.MakeVariant(mapConType(req.Type)),
 			"id":          dbus.MakeVariant(req.ID),
-			"uuid":        dbus.MakeVariant(nm.NewUUID()),
+			"uuid":        dbus.MakeVariant(uuid),
 			"autoconnect": dbus.MakeVariant(req.Autoconnect == nil || *req.Autoconnect),
 		},
 	}
 	if req.Interface != "" {
 		settings["connection"]["interface-name"] = dbus.MakeVariant(req.Interface)
+	}
+	if mapConType(req.Type) == "802-11-wireless" {
+		if strings.TrimSpace(req.SSID) == "" {
+			writeErr(w, http.StatusBadRequest, "ssid is required for wifi connections")
+			return
+		}
+		settings["802-11-wireless"] = map[string]dbus.Variant{
+			"ssid": dbus.MakeVariant([]byte(req.SSID)),
+			"mode": dbus.MakeVariant("infrastructure"),
+		}
+		if req.Password != "" {
+			settings["802-11-wireless"]["security"] = dbus.MakeVariant("802-11-wireless-security")
+			settings["802-11-wireless-security"] = map[string]dbus.Variant{
+				"key-mgmt": dbus.MakeVariant("wpa-psk"),
+				"psk":      dbus.MakeVariant(req.Password),
+			}
+		}
 	}
 	if req.IPv4 != nil || req.IPv6 != nil {
 		settings["ipv4"] = ipv4FromRequest(req.IPv4)
@@ -176,6 +200,34 @@ func (s *Server) handleConnectionsUpdate(w http.ResponseWriter, r *http.Request)
 	}
 	if req.IPv6 != nil {
 		if err := s.nm.UpdateProfileIPv6(uuid, ipv6FromRequest(req.IPv6)); err != nil {
+			httpError(w, err)
+			return
+		}
+	}
+	if req.ID != "" || req.Type != "" || req.Interface != "" {
+		conn, err := s.nm.ConnectionByUUID(uuid)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		settings, err := conn.GetSettings()
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		connection := settings["connection"]
+		if req.ID != "" {
+			connection["id"] = dbus.MakeVariant(req.ID)
+		}
+		if req.Type != "" {
+			connection["type"] = dbus.MakeVariant(mapConType(req.Type))
+		}
+		if req.Interface != "" {
+			connection["interface-name"] = dbus.MakeVariant(req.Interface)
+		} else if req.ID != "" {
+			delete(connection, "interface-name")
+		}
+		if err := conn.Update(settings); err != nil {
 			httpError(w, err)
 			return
 		}

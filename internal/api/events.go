@@ -24,15 +24,15 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	h.Set("Connection", "keep-alive")
 	h.Set("X-Accel-Buffering", "no")
 
-	ch, cleanup := s.hub.Subscribe()
+	since := parseLastEventID(r.Header.Get("Last-Event-ID"))
+	ch, replay, cleanup := s.hub.SubscribeReplay(since)
 	defer cleanup()
 
 	// Replay missed events on reconnect.
-	since := parseLastEventID(r.Header.Get("Last-Event-ID"))
-	if since > 0 {
-		s.hub.Replay(since, func(ev events.Event) {
+	if len(replay) > 0 {
+		for _, ev := range replay {
 			writeEvent(w, ev)
-		})
+		}
 		flusher.Flush()
 	}
 

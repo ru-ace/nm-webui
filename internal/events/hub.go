@@ -33,11 +33,24 @@ func NewHub(max int) *Hub {
 
 // Subscribe registers a new subscriber channel with a cleanup function.
 func (h *Hub) Subscribe() (<-chan Event, func()) {
+	ch, _, cleanup := h.SubscribeReplay(0)
+	return ch, cleanup
+}
+
+// SubscribeReplay registers a subscriber and snapshots missed events under
+// one lock, preventing a publish from appearing in both replay and live data.
+func (h *Hub) SubscribeReplay(since int64) (<-chan Event, []Event, func()) {
 	ch := make(chan Event, 64)
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
+	replay := make([]Event, 0)
+	for _, ev := range h.recent {
+		if ev.ID > since {
+			replay = append(replay, ev)
+		}
+	}
 	h.mu.Unlock()
-	return ch, func() {
+	return ch, replay, func() {
 		h.mu.Lock()
 		if _, ok := h.subs[ch]; ok {
 			delete(h.subs, ch)
