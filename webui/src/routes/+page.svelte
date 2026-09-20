@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Signal, Shield, Zap, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -62,7 +62,7 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
         <div class="flex items-center justify-between">
@@ -89,8 +89,8 @@
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
         <div class="flex items-center justify-between">
-           <div class="min-w-0">
-             <p class="text-sm text-base-content/60">External IP</p>
+          <div class="min-w-0">
+            <p class="text-sm text-base-content/60">External IP</p>
             {#if $systemStatus?.external_ip}
               <a
                 class="font-mono text-lg font-medium link link-primary"
@@ -124,18 +124,6 @@
               <RefreshCw class="h-5 w-5 {$loading['external-ip'] ? 'animate-spin' : ''}" />
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card bg-base-100 shadow-sm border border-base-300">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-base-content/60">Gateway</p>
-            <p class="font-mono text-lg font-medium">{$systemStatus?.primary_gateway || '—'}</p>
-          </div>
-          <Zap class="w-12 h-12 text-base-content/20" />
         </div>
       </div>
     </div>
