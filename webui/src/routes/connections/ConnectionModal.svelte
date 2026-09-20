@@ -6,6 +6,11 @@
   export let show = false;
   export let editing: any = null;
 
+  // Groups the profile editor knows how to configure. Profiles of any other
+  // NM type (vpn, loopback, ...) can still be renamed and get IP settings
+  // changed, but their type is preserved untouched on save.
+  const typeOptions = ['ethernet', 'wifi', 'bridge', 'gsm'] as const;
+
   let form = {
     id: '',
     interface: '',
@@ -22,11 +27,20 @@
   };
   let submitting = false;
 
+  function normalizeType(typeRaw: string, typeName?: string): string {
+    if (typeName && (typeOptions as readonly string[]).includes(typeName)) return typeName;
+    if (typeRaw === '802-11-wireless') return 'wifi';
+    if (typeRaw === '802-3-ethernet') return 'ethernet';
+    if (typeRaw === 'bridge') return 'bridge';
+    if (typeRaw === 'gsm' || typeRaw === 'cdma') return 'gsm';
+    return typeRaw || 'ethernet';
+  }
+
   $: if (editing) {
     form = {
       id: editing.id,
       interface: editing.interface || '',
-      type: editing.type === '802-11-wireless' ? 'wifi' : (editing.type === '802-3-ethernet' ? 'ethernet' : (editing.type === 'gsm' ? 'gsm' : editing.type)),
+      type: normalizeType(editing.type || '', editing.type_name),
       ssid: editing.ssid || '',
       password: '',
       apn: editing.apn || '',
@@ -41,17 +55,24 @@
 
   function handleSubmit(e: Event) {
     e.preventDefault();
+    // Never rewrite the type of profiles the editor does not support (vpn,
+    // loopback, ...): the backend maps unknown types to ethernet otherwise.
+    const known = !editing || (typeOptions as readonly string[]).includes(form.type as any);
     const data: any = {
       id: form.id,
       interface: form.interface,
-      type: form.type,
+      ...(known ? { type: form.type } : {}),
       ...(form.type === 'wifi' && !editing ? { ssid: form.ssid, password: form.password } : {}),
       ...(form.type === 'gsm'
         ? { apn: form.apn, number: form.number || '*99#', username: form.username, password: form.password, pin: form.pin }
         : {}),
       autoconnect: form.autoconnect,
-      ipv4: form.ipv4.method !== 'auto' ? { method: form.ipv4.method, address: form.ipv4.address, prefix: Number(form.ipv4.prefix), gateway: form.ipv4.gateway, dns: form.ipv4.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' },
-      ipv6: form.ipv6.method !== 'auto' ? { method: form.ipv6.method, address: form.ipv6.address, prefix: Number(form.ipv6.prefix), gateway: form.ipv6.gateway, dns: form.ipv6.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' }
+      ipv4: form.ipv4.method === 'manual'
+        ? { method: 'manual', address: form.ipv4.address, prefix: Number(form.ipv4.prefix), gateway: form.ipv4.gateway, dns: form.ipv4.dns.split(',').map(s => s.trim()).filter(Boolean) }
+        : { method: form.ipv4.method },
+      ipv6: form.ipv6.method === 'manual'
+        ? { method: 'manual', address: form.ipv6.address, prefix: Number(form.ipv6.prefix), gateway: form.ipv6.gateway, dns: form.ipv6.dns.split(',').map(s => s.trim()).filter(Boolean) }
+        : { method: form.ipv6.method }
     };
     if (editing?.uuid) {
       updateConnection(editing.uuid, data);
@@ -86,7 +107,7 @@
         </div>
 
         <div class="grid gap-4">
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div class="label"><span class="label-text">Profile Name</span></div>
               <input bind:value={form.id} class="input input-bordered w-full" required placeholder="My Connection" />
@@ -99,24 +120,29 @@
 
           <div>
             <div class="label"><span class="label-text">Type</span></div>
-            <div class="flex gap-2">
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'} disabled={!!editing}>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'ethernet'} onclick={() => form.type = 'ethernet'} disabled={!!editing}>
                 <Cable class="w-4 h-4" /> Ethernet
               </button>
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'} disabled={!!editing}>
+              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'wifi'} onclick={() => form.type = 'wifi'} disabled={!!editing}>
                 <Wifi class="w-4 h-4" /> Wi-Fi
               </button>
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'} disabled={!!editing}>
+              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'} disabled={!!editing}>
                 <Database class="w-4 h-4" /> Bridge
               </button>
-              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'gsm'} onclick={() => form.type = 'gsm'} disabled={!!editing}>
+              <button type="button" class="btn btn-outline gap-2" class:btn-primary={form.type === 'gsm'} onclick={() => form.type = 'gsm'} disabled={!!editing}>
                 <Smartphone class="w-4 h-4" /> Mobile
               </button>
             </div>
+            {#if editing && !(typeOptions as readonly string[]).includes(form.type as any)}
+              <p class="text-sm text-base-content/60 mt-2">
+                Profile type <span class="font-mono">{form.type}</span> is not editable here — name and IP settings can still be changed.
+              </p>
+            {/if}
           </div>
 
           {#if form.type === 'wifi' && !editing}
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="label"><span class="label-text">SSID</span></div>
                 <input bind:value={form.ssid} class="input input-bordered w-full" required placeholder="Network name" />
@@ -129,7 +155,7 @@
           {/if}
 
           {#if form.type === 'gsm' && !editing}
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="label"><span class="label-text">APN</span></div>
                 <input bind:value={form.apn} class="input input-bordered w-full" required placeholder="internet, internet.yota" />
@@ -153,61 +179,66 @@
             </div>
           {/if}
 
-          <div class="grid grid-cols-2 gap-4">
-            <fieldset class="fieldset">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <fieldset class="fieldset min-w-0">
               <legend class="fieldset-legend">IPv4 Configuration</legend>
-              <div class="grid gap-3">
-                <select bind:value={form.ipv4.method} class="select select-bordered">
+              <div class="grid grid-cols-1 gap-3">
+                <select bind:value={form.ipv4.method} class="select select-bordered min-w-0 w-full">
                   <option value="auto">DHCP (Auto)</option>
                   <option value="manual">Static</option>
                   <option value="disabled">Disabled</option>
+                  <option value="link-local">Link-local only</option>
+                  <option value="shared">Shared</option>
                 </select>
                 {#if form.ipv4.method === 'manual'}
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-1 gap-3 min-w-0">
                     <div>
                       <div class="label"><span class="label-text">Address / Prefix</span></div>
                       <div class="flex gap-2">
-                        <input bind:value={form.ipv4.address} class="input input-bordered flex-1" placeholder="192.168.1.100" required />
-                        <input bind:value={form.ipv4.prefix} type="number" min="0" max="32" class="input input-bordered w-20" required />
+                        <input bind:value={form.ipv4.address} class="input input-bordered flex-1 min-w-0" placeholder="192.168.1.100" required />
+                        <input bind:value={form.ipv4.prefix} type="number" min="0" max="32" class="input input-bordered w-24 shrink-0" required />
                       </div>
                     </div>
                     <div>
                       <div class="label"><span class="label-text">Gateway</span></div>
-                      <input bind:value={form.ipv4.gateway} class="input input-bordered" placeholder="192.168.1.1" />
+                      <input bind:value={form.ipv4.gateway} class="input input-bordered w-full" placeholder="192.168.1.1" />
                     </div>
-                    <div class="col-span-2">
+                    <div>
                       <div class="label"><span class="label-text">DNS (comma separated)</span></div>
-                      <input bind:value={form.ipv4.dns} class="input input-bordered" placeholder="1.1.1.1, 8.8.8.8" />
+                      <input bind:value={form.ipv4.dns} class="input input-bordered w-full" placeholder="1.1.1.1, 8.8.8.8" />
                     </div>
                   </div>
                 {/if}
               </div>
             </fieldset>
 
-            <fieldset class="fieldset">
+            <fieldset class="fieldset min-w-0">
               <legend class="fieldset-legend">IPv6 Configuration</legend>
-              <div class="grid gap-3">
-                <select bind:value={form.ipv6.method} class="select select-bordered">
+              <div class="grid grid-cols-1 gap-3">
+                <select bind:value={form.ipv6.method} class="select select-bordered min-w-0 w-full">
                   <option value="auto">DHCP (Auto)</option>
                   <option value="manual">Static</option>
                   <option value="disabled">Disabled</option>
+                  <option value="link-local">Link-local only</option>
+                  <option value="shared">Shared</option>
+                  <option value="ignore">Ignore</option>
                 </select>
                 {#if form.ipv6.method === 'manual'}
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-1 gap-3 min-w-0">
                     <div>
                       <div class="label"><span class="label-text">Address / Prefix</span></div>
                       <div class="flex gap-2">
-                        <input bind:value={form.ipv6.address} class="input input-bordered flex-1" placeholder="2001:db8::1" required />
-                        <input bind:value={form.ipv6.prefix} type="number" min="0" max="128" class="input input-bordered w-20" required />
+                        <input bind:value={form.ipv6.address} class="input input-bordered flex-1 min-w-0" placeholder="2001:db8::1" required />
+                        <input bind:value={form.ipv6.prefix} type="number" min="0" max="128" class="input input-bordered w-24 shrink-0" required />
                       </div>
                     </div>
                     <div>
                       <div class="label"><span class="label-text">Gateway</span></div>
-                      <input bind:value={form.ipv6.gateway} class="input input-bordered" placeholder="2001:db8::1" />
+                      <input bind:value={form.ipv6.gateway} class="input input-bordered w-full" placeholder="2001:db8::1" />
                     </div>
-                    <div class="col-span-2">
+                    <div>
                       <div class="label"><span class="label-text">DNS (comma separated)</span></div>
-                      <input bind:value={form.ipv6.dns} class="input input-bordered" placeholder="2606:4700:4700::1111" />
+                      <input bind:value={form.ipv6.dns} class="input input-bordered w-full" placeholder="2606:4700:4700::1111" />
                     </div>
                   </div>
                 {/if}
