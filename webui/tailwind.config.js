@@ -24,6 +24,22 @@ export default {
           warning: '#f59e0b',
           error: '#ef4444'
         }
+      },
+      {
+        dark: {
+          primary: '#60a5fa',
+          secondary: '#94a3b8',
+          accent: '#fbbf24',
+          neutral: '#1e293b',
+          'base-100': '#0f172a',
+          'base-200': '#1e293b',
+          'base-300': '#334155',
+          'base-content': '#e2e8f0',
+          info: '#38bdf8',
+          success: '#4ade80',
+          warning: '#fbbf24',
+          error: '#f87171'
+        }
       }
     ],
     darkTheme: false,

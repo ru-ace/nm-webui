@@ -1,6 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { currentPath, navigate } from '$lib/stores/router';
-  import { Wifi, Monitor, Server, Settings, Menu } from 'lucide-svelte';
+  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog } from 'lucide-svelte';
+  import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
+
+  onMount(initTheme);
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: Monitor },
@@ -8,6 +12,8 @@
     { href: '/devices', label: 'Devices', icon: Server },
     { href: '/connections', label: 'Profiles', icon: Settings }
   ];
+
+  $: themeLabel = $themeMode === 'system' ? `System (${ $activeTheme })` : $themeMode === 'dark' ? 'Dark' : 'Light';
 </script>
 
 <nav class="navbar bg-base-100 shadow-sm border-b border-base-300 sticky top-0 z-50">
@@ -35,6 +41,21 @@
     {/each}
   </div>
   <div class="navbar-end">
+    <button
+      class="btn btn-ghost btn-circle"
+      type="button"
+      onclick={cycleTheme}
+      aria-label={`Switch theme: ${themeLabel}`}
+      title={`${themeLabel}. Click to switch.`}
+    >
+      {#if $themeMode === 'system'}
+        <MonitorCog class="w-5 h-5" />
+      {:else if $activeTheme === 'dark'}
+        <Moon class="w-5 h-5" />
+      {:else}
+        <Sun class="w-5 h-5" />
+      {/if}
+    </button>
     <div class="dropdown dropdown-end">
       <button tabindex="0" class="btn btn-ghost btn-circle avatar" aria-label="User menu">
         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content font-medium">
