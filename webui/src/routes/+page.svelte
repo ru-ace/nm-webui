@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -21,6 +21,7 @@
   });
 
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
+  $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet' && d.managed && d.state >= 30);
   $: modemDevices = $devices.filter(d => !!d.modem && d.managed);
   $: primaryWifi = wifiDevices.find(d => d.state === 100);
   $: primaryWifiStatus = primaryWifi ? $wifiStatusMap[primaryWifi.interface] : null;
@@ -133,9 +134,88 @@
     </div>
   </div>
 
+  {#if ethernetDevices.length > 0}
+    <section>
+      <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+        <EthernetPort class="w-5 h-5 text-primary" />
+        Ethernet
+      </h2>
+      <div class="grid gap-4 md:grid-cols-2">
+        {#each ethernetDevices as device}
+          <div class="card bg-base-100 shadow-sm border border-base-300 card-hover">
+            <div class="card-body">
+              <div class="flex items-start justify-between mb-4">
+                <div>
+                  <h3 class="font-semibold">{device.interface}</h3>
+                  <p class="text-sm text-base-content/60">{device.mac}</p>
+                </div>
+                <span class="badge {getStateBadge(device.state).class}">{getStateBadge(device.state).label}</span>
+              </div>
+
+              {#if device.state === 100}
+                <div class="space-y-2 mb-4 p-3 rounded-lg bg-success/10">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="font-medium">Wired connection</p>
+                      {#if device.ipv4?.addresses?.length}
+                        <p class="text-xs font-mono text-base-content/70">{device.ipv4.addresses.map((a: { address: string; prefix: number }) => `${a.address}/${a.prefix}`).join(', ')}</p>
+                      {/if}
+                    </div>
+                    <EthernetPort class="w-8 h-8 text-success" />
+                  </div>
+                  {#if device.ipv4?.gateway}
+                    <p class="text-xs text-base-content/70"><span class="text-base-content/60">Gateway</span> <span class="font-mono">{device.ipv4.gateway}</span></p>
+                  {/if}
+                </div>
+              {:else if device.state === 30}
+                <div class="text-center py-4 text-base-content/50">
+                  <EthernetPort class="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Cable connected, no active connection</p>
+                </div>
+              {:else}
+                <div class="flex items-center justify-center gap-2 py-4">
+                  <Loader2 class="w-6 h-6 animate-spin text-primary" />
+                  <span>Connecting...</span>
+                </div>
+              {/if}
+
+              <div class="flex gap-2">
+                {#if device.state === 100}
+                  <button
+                    type="button"
+                    class="btn btn-error flex-1"
+                    onclick={() => disconnectDevice(device.interface)}
+                    disabled={loadingMap[`disconnect-${device.interface}`]}
+                  >
+                    Disconnect
+                  </button>
+                {:else if device.state === 30}
+                  <button
+                    type="button"
+                    class="btn btn-primary flex-1"
+                    onclick={() => connectDevice(device.interface)}
+                    disabled={loadingMap[`connect-${device.interface}`]}
+                  >
+                    Connect
+                  </button>
+                {:else}
+                  <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
+                {/if}
+                <button type="button" class="btn btn-ghost" onclick={() => navigate('/devices')}>Manage</button>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
   {#if wifiDevices.length > 0}
     <section>
-      <h2 class="text-lg font-semibold mb-3">Wi-Fi Interfaces</h2>
+      <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+        <Wifi class="w-5 h-5 text-primary" />
+        Wi-Fi Interfaces
+      </h2>
       <div class="grid gap-4 md:grid-cols-2">
         {#each wifiDevices as device}
           <div class="card bg-base-100 shadow-sm border border-base-300 card-hover">
