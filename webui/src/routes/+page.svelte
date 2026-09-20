@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Shield, Zap, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Signal, Shield, Zap, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -21,6 +21,7 @@
   });
 
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
+  $: modemDevices = $devices.filter(d => !!d.modem && d.managed);
   $: primaryWifi = wifiDevices.find(d => d.state === 100);
   $: primaryWifiStatus = primaryWifi ? $wifiStatusMap[primaryWifi.interface] : null;
   $: loadingMap = $loading;
@@ -200,6 +201,87 @@
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
                 {/if}
                 <button type="button" class="btn btn-ghost" onclick={() => navigate(`/wifi?iface=${device.interface}`)}>Manage</button>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if modemDevices.length > 0}
+    <section>
+      <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+        <Smartphone class="w-5 h-5 text-primary" />
+        Mobile Broadband
+      </h2>
+      <div class="grid gap-4 md:grid-cols-2">
+        {#each modemDevices as device}
+          <div class="card bg-base-100 shadow-sm border border-base-300 card-hover">
+            <div class="card-body">
+              <div class="flex items-start justify-between mb-4">
+                <div>
+                  <h3 class="font-semibold">{device.interface}</h3>
+                  <p class="text-sm text-base-content/60">{device.modem?.manufacturer || ''} {device.modem?.model || ''}</p>
+                </div>
+                <span class="badge {getStateBadge(device.state).class}">{getStateBadge(device.state).label}</span>
+              </div>
+
+              <div class="space-y-2 mb-4 p-3 rounded-lg {device.state === 100 ? 'bg-success/10' : 'bg-base-200/50'}">
+                <div class="flex items-center justify-between flex-wrap gap-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium">{device.modem?.operator_name || '—'}</span>
+                    {#if device.modem?.access_tech_name}
+                      <span class="badge badge-primary badge-sm">{device.modem.access_tech_name}</span>
+                    {/if}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {#if device.modem?.signal}
+                      <span class="badge badge-ghost badge-sm">Signal {device.modem.signal.percent}%</span>
+                    {/if}
+                    {#if device.state === 100}
+                      <span class="text-xs text-success flex items-center gap-1"><Signal class="w-4 h-4" /> Connected</span>
+                    {:else if device.state === 30}
+                      <span class="text-xs text-base-content/50">Not connected</span>
+                    {:else}
+                      <span class="text-xs text-base-content/50">Modem: {device.modem?.state_name || 'preparing'}</span>
+                    {/if}
+                  </div>
+                </div>
+                {#if device.state === 100 && device.ipv4?.addresses?.length}
+                  <p class="text-xs font-mono text-base-content/70">
+                    {device.ipv4.addresses.map((a: { address: string; prefix: number }) => `${a.address}/${a.prefix}`).join(', ')}
+                  </p>
+                {/if}
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div><span class="text-base-content/60">APN</span><br /><span class="font-mono">{device.modem?.apn || '—'}</span></div>
+                  <div><span class="text-base-content/60">SIM</span><br /><span class="font-mono">{device.modem?.sim?.operator_name || device.modem?.sim?.iccid || '—'}</span></div>
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                {#if device.state === 100}
+                  <button
+                    type="button"
+                    class="btn btn-error flex-1"
+                    onclick={() => disconnectDevice(device.interface)}
+                    disabled={loadingMap[`disconnect-${device.interface}`]}
+                  >
+                    Disconnect
+                  </button>
+                {:else if device.state === 30}
+                  <button
+                    type="button"
+                    class="btn btn-primary flex-1"
+                    onclick={() => connectDevice(device.interface)}
+                    disabled={loadingMap[`connect-${device.interface}`]}
+                  >
+                    Connect
+                  </button>
+                {:else}
+                  <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
+                {/if}
+                <button type="button" class="btn btn-ghost" onclick={() => navigate('/devices')}>Manage</button>
               </div>
             </div>
           </div>
