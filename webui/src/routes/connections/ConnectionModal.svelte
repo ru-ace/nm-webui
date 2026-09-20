@@ -285,3 +285,17 @@
     <button type="button" class="modal-backdrop" onclick={close} aria-hidden="true"></button>
   </div>
 {/if}
+
+<style>
+  /* The modal is rendered as a later sibling inside `space-y-*` containers,
+     whose margin-top ends up shifting the fixed overlay (top band). The
+     right band comes from daisyUI's root scroll-lock reserving a scrollbar
+     gutter while the overlay only spans the layout viewport width. */
+  :global(.modal) {
+    margin: 0 !important;
+    width: 100vw;
+  }
+  :global(:root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open]))) {
+    scrollbar-gutter: auto !important;
+  }
+</style>
