@@ -7,15 +7,20 @@ const (
 	SettingsPath   = "/org/freedesktop/NetworkManager/Settings"
 	SettingsIfName = "org.freedesktop.NetworkManager.Settings"
 
-	DeviceIf        = "org.freedesktop.NetworkManager.Device"
-	WirelessIf      = "org.freedesktop.NetworkManager.Device.Wireless"
-	APIf            = "org.freedesktop.NetworkManager.AccessPoint"
-	ActiveConnIf    = "org.freedesktop.NetworkManager.Connection.Active"
-	SettingsConnIf  = "org.freedesktop.NetworkManager.Settings.Connection"
-	IP4ConfigIf     = "org.freedesktop.NetworkManager.IP4Config"
-	IP6ConfigIf     = "org.freedesktop.NetworkManager.IP6Config"
-	ConnIf          = "org.freedesktop.NetworkManager.Connection"
-	DnsIf           = "org.freedesktop.NetworkManager.DnsManager"
+	DeviceIf       = "org.freedesktop.NetworkManager.Device"
+	DeviceModemIf  = "org.freedesktop.NetworkManager.Device.Modem"
+	WirelessIf     = "org.freedesktop.NetworkManager.Device.Wireless"
+	APIf           = "org.freedesktop.NetworkManager.AccessPoint"
+	ActiveConnIf   = "org.freedesktop.NetworkManager.Connection.Active"
+	SettingsConnIf = "org.freedesktop.NetworkManager.Settings.Connection"
+	IP4ConfigIf    = "org.freedesktop.NetworkManager.IP4Config"
+	IP6ConfigIf    = "org.freedesktop.NetworkManager.IP6Config"
+	ConnIf         = "org.freedesktop.NetworkManager.Connection"
+	DnsIf          = "org.freedesktop.NetworkManager.DnsManager"
+
+	MMService = "org.freedesktop.ModemManager1"
+	MMModemIf = "org.freedesktop.ModemManager1.Modem"
+	MMSimIf   = "org.freedesktop.ModemManager1.Sim"
 )
 
 // Device types.
@@ -23,6 +28,7 @@ const (
 	DeviceTypeEthernet  = 1
 	DeviceTypeWiFi      = 2
 	DeviceTypeBt        = 5
+	DeviceTypeModem     = 8
 	DeviceTypeBond      = 10
 	DeviceTypeVlan      = 11
 	DeviceTypeBridge    = 13
@@ -42,19 +48,19 @@ const (
 
 // Device states.
 const (
-	DeviceStateUnknown       = 0
-	DeviceStateUnmanaged     = 10
-	DeviceStateUnavailable   = 20
-	DeviceStateDisconnected  = 30
-	DeviceStatePrepare       = 40
-	DeviceStateConfig        = 50
-	DeviceStateNeedAuth      = 60
-	DeviceStateIPConfig      = 70
-	DeviceStateIPCheck       = 80
-	DeviceStateSecondaries   = 90
-	DeviceStateActivated     = 100
-	DeviceStateDeactivating  = 110
-	DeviceStateFailed        = 120
+	DeviceStateUnknown      = 0
+	DeviceStateUnmanaged    = 10
+	DeviceStateUnavailable  = 20
+	DeviceStateDisconnected = 30
+	DeviceStatePrepare      = 40
+	DeviceStateConfig       = 50
+	DeviceStateNeedAuth     = 60
+	DeviceStateIPConfig     = 70
+	DeviceStateIPCheck      = 80
+	DeviceStateSecondaries  = 90
+	DeviceStateActivated    = 100
+	DeviceStateDeactivating = 110
+	DeviceStateFailed       = 120
 )
 
 // Active connection states.
@@ -68,11 +74,11 @@ const (
 
 // Connectivity states.
 const (
-	ConnectivityUnknown  = 0
-	ConnectivityNone     = 1
-	ConnectivityPortal   = 2
-	ConnectivityLimited  = 3
-	ConnectivityFull     = 4
+	ConnectivityUnknown = 0
+	ConnectivityNone    = 1
+	ConnectivityPortal  = 2
+	ConnectivityLimited = 3
+	ConnectivityFull    = 4
 )
 
 // DeviceTypeName maps NM device types to friendly names.
@@ -84,6 +90,8 @@ func DeviceTypeName(t uint32) string {
 		return "wifi"
 	case DeviceTypeBt:
 		return "bluetooth"
+	case DeviceTypeModem:
+		return "modem"
 	case DeviceTypeBond:
 		return "bond"
 	case DeviceTypeVlan:

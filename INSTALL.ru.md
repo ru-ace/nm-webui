@@ -117,7 +117,7 @@ sudo ./deploy/install.sh /usr/local/bin/nm-webui /etc/nm-webui/config.yaml nm-we
 ```yaml
 listen: "0.0.0.0:8080"           # Адрес прослушивания
 auth-pass: "ваш-надежный-пароль"  # Задайте пароль!
-interface-filter: "^(eth|en|wlan|wifi|wwan|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false                        # Включить HTTPS
 tls-cert: ""                      # Путь к сертификату
 tls-key: ""                       # Путь к ключу

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings } from 'lucide-svelte';
+  import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings, Smartphone } from 'lucide-svelte';
   import { connections, loading, loadConnections, forgetConnection, toggleAutoconnect, activateConnection, deactivateConnection } from '$lib/stores/app';
   import ConnectionModal from './ConnectionModal.svelte';
   import ConnectionRow from './ConnectionRow.svelte';
@@ -12,7 +12,8 @@
 
   $: wifiConnections = $connections.filter(c => c.is_wifi);
   $: ethernetConnections = $connections.filter(c => !c.is_wifi && c.type_name === 'ethernet');
-  $: otherConnections = $connections.filter(c => !c.is_wifi && c.type_name !== 'ethernet');
+  $: modemConnections = $connections.filter(c => c.is_modem);
+  $: otherConnections = $connections.filter(c => !c.is_wifi && c.type_name !== 'ethernet' && !c.is_modem);
   $: loadingMap = $loading;
 
   function handleSubmit(event: CustomEvent<{ data: any; editing: boolean }>) {
@@ -49,6 +50,7 @@
   {#each [
     { title: 'Wi-Fi', items: wifiConnections, icon: Wifi },
     { title: 'Ethernet', items: ethernetConnections, icon: Cable },
+    { title: 'Mobile Broadband', items: modemConnections, icon: Smartphone },
     { title: 'Other', items: otherConnections, icon: Database }
   ] as group}
     {#if group.items.length > 0}

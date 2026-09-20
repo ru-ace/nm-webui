@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Loader2, Copy, Wifi, Cable, Database, Server } from 'lucide-svelte';
+  import { ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Loader2, Copy, Wifi, Cable, Database, Server, Smartphone } from 'lucide-svelte';
   import { disconnectDevice, connectDevice } from '$lib/stores/app';
   import { navigate } from '$lib/stores/router';
 
@@ -8,8 +8,9 @@
 
   let expanded = false;
 
-  function getDeviceIconType(type: string, wireless: boolean) {
+  function getDeviceIconType(type: string, wireless: boolean, modem: boolean) {
     if (wireless) return 'wifi';
+    if (modem) return 'modem';
     if (type === 'ethernet') return 'cable';
     if (type === 'bridge') return 'database';
     return 'server';
@@ -38,7 +39,7 @@
   }
 
   $: stateBadge = getStateBadge(device.state);
-  $: deviceIconType = getDeviceIconType(device.type_name, device.wireless);
+  $: deviceIconType = getDeviceIconType(device.type_name, device.wireless, !!device.modem);
 </script>
 
 <div class="card bg-base-100 shadow-sm border border-base-300 card-hover">
@@ -46,7 +47,7 @@
     <div class="flex items-start justify-between mb-4">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-primary/10 rounded-lg">
-          <svelte:component this={deviceIconType === 'wifi' ? Wifi : deviceIconType === 'cable' ? Cable : deviceIconType === 'database' ? Database : Server} class="w-5 h-5" />
+          <svelte:component this={deviceIconType === 'wifi' ? Wifi : deviceIconType === 'cable' ? Cable : deviceIconType === 'modem' ? Smartphone : deviceIconType === 'database' ? Database : Server} class="w-5 h-5" />
         </div>
         <div>
           <h3 class="font-semibold">{device.interface}</h3>
@@ -68,6 +69,36 @@
         {/if}
       </div>
     </div>
+
+    {#if device.modem}
+      <div class="mt-3 pt-3 border-t border-base-300 space-y-2 text-sm">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-base-content/60">Mobile network</span>
+          <span class="font-medium">{device.modem.operator_name || '—'}</span>
+          {#if device.modem.access_tech_name}
+            <span class="badge badge-primary badge-sm">{device.modem.access_tech_name}</span>
+          {/if}
+          {#if device.modem.signal}
+            <span class="badge badge-ghost badge-sm">Signal {device.modem.signal.percent}%</span>
+          {/if}
+          {#if device.modem.state_name && device.state !== 100}
+            <span class="badge badge-ghost badge-sm">Modem: {device.modem.state_name}</span>
+          {/if}
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><span class="text-base-content/60">APN</span><br><span class="font-mono text-xs">{device.modem.apn || '—'}</span></div>
+          <div><span class="text-base-content/60">Modem</span><br><span class="font-medium">{device.modem.manufacturer || ''} {device.modem.model || '—'}</span></div>
+          <div><span class="text-base-content/60">IMEI</span><br><span class="font-mono text-xs">{device.modem.imei || '—'}</span></div>
+          <div><span class="text-base-content/60">Capabilities</span><br><span class="text-xs">{device.modem.capabilities_text || '—'}</span></div>
+          {#if device.modem.sim}
+            <div class="col-span-2"><span class="text-base-content/60">SIM</span><br><span class="font-mono text-xs">
+              {#if device.modem.sim.operator_name}{device.modem.sim.operator_name}{/if}
+              {#if device.modem.sim.iccid}({device.modem.sim.iccid}){/if}
+            </span></div>
+          {/if}
+        </div>
+      </div>
+    {/if}
 
     <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">
       {#if device.wireless}

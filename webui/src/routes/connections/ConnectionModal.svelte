@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Wifi, Cable, Database, Loader2 } from 'lucide-svelte';
+  import { X, Wifi, Cable, Database, Loader2, Smartphone } from 'lucide-svelte';
   import { fly } from 'svelte/transition';
   import { createConnection, updateConnection } from '$lib/stores/app';
 
@@ -12,6 +12,10 @@
     type: 'ethernet',
     ssid: '',
     password: '',
+    apn: '',
+    number: '*99#',
+    username: '',
+    pin: '',
     autoconnect: true,
     ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' },
     ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' }
@@ -22,9 +26,13 @@
     form = {
       id: editing.id,
       interface: editing.interface || '',
-      type: editing.type === '802-11-wireless' ? 'wifi' : (editing.type === '802-3-ethernet' ? 'ethernet' : editing.type),
+      type: editing.type === '802-11-wireless' ? 'wifi' : (editing.type === '802-3-ethernet' ? 'ethernet' : (editing.type === 'gsm' ? 'gsm' : editing.type)),
       ssid: editing.ssid || '',
       password: '',
+      apn: editing.apn || '',
+      number: editing.number || '*99#',
+      username: editing.username || '',
+      pin: '',
       autoconnect: editing.autoconnect,
       ipv4: { method: editing.ipv4_method, address: editing.static4?.address || '', prefix: editing.static4?.prefix || 24, gateway: editing.static4?.gateway || '', dns: editing.static4?.dns?.join(', ') || '' },
       ipv6: { method: editing.ipv6_method, address: editing.static6?.address || '', prefix: editing.static6?.prefix || 64, gateway: editing.static6?.gateway || '', dns: editing.static6?.dns?.join(', ') || '' }
@@ -38,6 +46,9 @@
       interface: form.interface,
       type: form.type,
       ...(form.type === 'wifi' && !editing ? { ssid: form.ssid, password: form.password } : {}),
+      ...(form.type === 'gsm'
+        ? { apn: form.apn, number: form.number || '*99#', username: form.username, password: form.password, pin: form.pin }
+        : {}),
       autoconnect: form.autoconnect,
       ipv4: form.ipv4.method !== 'auto' ? { method: form.ipv4.method, address: form.ipv4.address, prefix: Number(form.ipv4.prefix), gateway: form.ipv4.gateway, dns: form.ipv4.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' },
       ipv6: form.ipv6.method !== 'auto' ? { method: form.ipv6.method, address: form.ipv6.address, prefix: Number(form.ipv6.prefix), gateway: form.ipv6.gateway, dns: form.ipv6.dns.split(',').map(s => s.trim()).filter(Boolean) } : { method: 'auto' }
@@ -53,13 +64,14 @@
   function close() {
     show = false;
     editing = null;
-    form = { id: '', interface: '', type: 'ethernet', ssid: '', password: '', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
+    form = { id: '', interface: '', type: 'ethernet', ssid: '', password: '', apn: '', number: '*99#', username: '', pin: '', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
     submitting = false;
   }
 
   function getTypeIconType(type: string) {
     if (type === 'wifi') return 'wifi';
     if (type === 'ethernet') return 'cable';
+    if (type === 'gsm') return 'modem';
     return 'database';
   }
 </script>
@@ -97,6 +109,9 @@
               <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'bridge'} onclick={() => form.type = 'bridge'} disabled={!!editing}>
                 <Database class="w-4 h-4" /> Bridge
               </button>
+              <button type="button" class="btn btn-outline flex-1 gap-2" class:btn-primary={form.type === 'gsm'} onclick={() => form.type = 'gsm'} disabled={!!editing}>
+                <Smartphone class="w-4 h-4" /> Mobile
+              </button>
             </div>
           </div>
 
@@ -109,6 +124,31 @@
               <div>
                 <div class="label"><span class="label-text">Password (optional)</span></div>
                 <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder="Wi-Fi password" />
+              </div>
+            </div>
+          {/if}
+
+          {#if form.type === 'gsm' && !editing}
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <div class="label"><span class="label-text">APN</span></div>
+                <input bind:value={form.apn} class="input input-bordered w-full" required placeholder="internet, internet.yota" />
+              </div>
+              <div>
+                <div class="label"><span class="label-text">Dial Number</span></div>
+                <input bind:value={form.number} class="input input-bordered w-full" placeholder="*99#" />
+              </div>
+              <div>
+                <div class="label"><span class="label-text">Username (optional)</span></div>
+                <input bind:value={form.username} class="input input-bordered w-full" placeholder="gdata" />
+              </div>
+              <div>
+                <div class="label"><span class="label-text">Password (optional)</span></div>
+                <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder="APN password" />
+              </div>
+              <div>
+                <div class="label"><span class="label-text">SIM PIN (optional)</span></div>
+                <input bind:value={form.pin} type="password" class="input input-bordered w-full" placeholder="1234" />
               </div>
             </div>
           {/if}

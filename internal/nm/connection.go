@@ -80,7 +80,146 @@ func (co *Connection) GetSettings() (map[string]map[string]dbus.Variant, error) 
 
 // Update replaces the connection settings.
 func (co *Connection) Update(settings map[string]map[string]dbus.Variant) error {
+	sanitizeIPBlocks(settings)
 	return co.obj.Call(SettingsConnIf+".Update", 0, settings).Err
+}
+
+// sanitizeIPBlocks normalizes legacy raw address/route arrays (aau for IPv4
+// and a(ayuay) for IPv6) that godbus decodes as aav back into the
+// address-data/route-data form NM accepts on Update. Without this NM rejects
+// the round-trip with "can't set property of type 'a(ayuayu)' from value of
+// type 'aav'" when editing any saved profile.
+func sanitizeIPBlocks(settings map[string]map[string]dbus.Variant) {
+	for _, family := range []string{"ipv4", "ipv6"} {
+		block := settings[family]
+		if block == nil {
+			continue
+		}
+		if _, hasData := block["address-data"]; !hasData {
+			if v, ok := block["addresses"]; ok {
+				if data := legacyToAddressData(family, v.Value()); data != nil {
+					block["address-data"] = dbus.MakeVariant(data)
+				}
+			}
+		}
+		delete(block, "addresses")
+		if _, hasData := block["route-data"]; !hasData {
+			if v, ok := block["routes"]; ok {
+				if data := legacyToRouteData(family, v.Value()); data != nil {
+					block["route-data"] = dbus.MakeVariant(data)
+				}
+			}
+		}
+		delete(block, "routes")
+		if g, ok := block["gateway"]; ok {
+			if s, ok2 := g.Value().(string); ok2 && s == "" {
+				delete(block, "gateway")
+			}
+		}
+	}
+}
+
+// legacyToAddressData converts a legacy raw addresses array into address-data
+// entries (aa{sv}), or nil when no usable data is present.
+func legacyToAddressData(family string, v interface{}) []map[string]dbus.Variant {
+	var out []map[string]dbus.Variant
+	switch arr := v.(type) {
+	case [][]uint32: // ipv4: aau
+		for _, a := range arr {
+			if len(a) < 2 {
+				continue
+			}
+			entry := map[string]dbus.Variant{
+				"address": dbus.MakeVariant(u32ToIP(a[0])),
+				"prefix":  dbus.MakeVariant(a[1]),
+			}
+			if len(a) > 2 && a[2] != 0 {
+				entry["gateway"] = dbus.MakeVariant(u32ToIP(a[2]))
+			}
+			out = append(out, entry)
+		}
+	case []interface{}: // ipv6: a(ayuay)
+		for _, item := range arr {
+			inner, ok := item.([]interface{})
+			if !ok || len(inner) < 2 {
+				continue
+			}
+			entry := map[string]dbus.Variant{}
+			if b, ok := inner[0].([]byte); ok && len(b) == 16 {
+				entry["address"] = dbus.MakeVariant(net.IP(b).String())
+			}
+			switch p := inner[1].(type) {
+			case uint32:
+				entry["prefix"] = dbus.MakeVariant(p)
+			case byte:
+				entry["prefix"] = dbus.MakeVariant(uint32(p))
+			}
+			if len(inner) > 2 {
+				if b, ok := inner[2].([]byte); ok && len(b) == 16 {
+					entry["gateway"] = dbus.MakeVariant(net.IP(b).String())
+				}
+			}
+			if _, ok := entry["address"]; ok {
+				out = append(out, entry)
+			}
+		}
+	}
+	return out
+}
+
+// legacyToRouteData converts a legacy raw routes array into route-data entries.
+func legacyToRouteData(family string, v interface{}) []map[string]dbus.Variant {
+	var out []map[string]dbus.Variant
+	switch arr := v.(type) {
+	case [][]uint32: // ipv4: aau
+		for _, r := range arr {
+			if len(r) < 2 {
+				continue
+			}
+			entry := map[string]dbus.Variant{
+				"dest":   dbus.MakeVariant(u32ToIP(r[0])),
+				"prefix": dbus.MakeVariant(r[1]),
+			}
+			if len(r) > 2 && r[2] != 0 {
+				entry["next-hop"] = dbus.MakeVariant(u32ToIP(r[2]))
+			}
+			if len(r) > 3 && r[3] != 0 {
+				entry["metric"] = dbus.MakeVariant(r[3])
+			}
+			out = append(out, entry)
+		}
+	case []interface{}: // ipv6: a(ayuayu)
+		for _, item := range arr {
+			inner, ok := item.([]interface{})
+			if !ok || len(inner) < 2 {
+				continue
+			}
+			entry := map[string]dbus.Variant{}
+			if b, ok := inner[0].([]byte); ok && len(b) == 16 {
+				entry["dest"] = dbus.MakeVariant(net.IP(b).String())
+			}
+			switch p := inner[1].(type) {
+			case uint32:
+				entry["prefix"] = dbus.MakeVariant(p)
+			case byte:
+				entry["prefix"] = dbus.MakeVariant(uint32(p))
+			}
+			if len(inner) > 2 {
+				if b, ok := inner[2].([]byte); ok && len(b) == 16 {
+					entry["next-hop"] = dbus.MakeVariant(net.IP(b).String())
+				}
+			}
+			if len(inner) > 3 {
+				if m, ok := inner[3].(uint32); ok && m != 0 {
+					entry["metric"] = dbus.MakeVariant(m)
+				}
+			}
+			if _, ok := entry["dest"]; ok {
+				out = append(out, entry)
+			}
+		}
+	}
+	return out
 }
 
 // Delete removes the connection profile.
@@ -123,6 +262,9 @@ type ConnectionInfo struct {
 	TypeName    string        `json:"type_name"`
 	Interface   string        `json:"interface,omitempty"`
 	SSID        string        `json:"ssid,omitempty"`
+	APN         string        `json:"apn,omitempty"`
+	Number      string        `json:"number,omitempty"`
+	UserName    string        `json:"username,omitempty"`
 	Autoconnect bool          `json:"autoconnect"`
 	Active      bool          `json:"active"`
 	Device      string        `json:"device,omitempty"`
@@ -131,6 +273,7 @@ type ConnectionInfo struct {
 	Static4     *StaticConfig `json:"static4,omitempty"`
 	Static6     *StaticConfig `json:"static6,omitempty"`
 	IsWiFi      bool          `json:"is_wifi"`
+	IsModem     bool          `json:"is_modem"`
 }
 
 // Info parses the connection settings into ConnectionInfo.
@@ -155,6 +298,9 @@ func (co *Connection) Info() (ConnectionInfo, error) {
 		info.IsWiFi = true
 	case "802-3-ethernet":
 		info.TypeName = "ethernet"
+	case "gsm":
+		info.TypeName = "gsm"
+		info.IsModem = true
 	case "bridge":
 		info.TypeName = "bridge"
 	default:
@@ -173,6 +319,12 @@ func (co *Connection) Info() (ConnectionInfo, error) {
 			// A profile without interface-name is valid for any compatible device.
 			// The wireless MAC is not an interface name.
 		}
+	}
+
+	if g := settings["gsm"]; g != nil {
+		info.APN = variantString(g, "apn")
+		info.Number = variantString(g, "number")
+		info.UserName = variantString(g, "username")
 	}
 
 	if ip4 := settings["ipv4"]; ip4 != nil {

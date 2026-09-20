@@ -44,13 +44,26 @@ func (c *Client) devicesFromPaths(paths []dbus.ObjectPath) ([]*Device, error) {
 }
 
 // DeviceByInterface finds a device by its interface name.
+//
+// GetDeviceByIpIface matches on the device IP interface (IpInterface), which
+// for mobile broadband differs from the control-port interface (e.g.
+// cdc-wdm0 -> wwp199s0f3u1i4) once connected, so it can fail. Fall back to
+// scanning the Interface property of all devices.
 func (c *Client) DeviceByInterface(iface string) (*Device, error) {
 	var path dbus.ObjectPath
-	err := c.nm.Call(NmIfName+".GetDeviceByIpIface", 0, iface).Store(&path)
+	if err := c.nm.Call(NmIfName+".GetDeviceByIpIface", 0, iface).Store(&path); err == nil {
+		return &Device{c: c, path: path, obj: c.conn.Object(DBusService, path)}, nil
+	}
+	devs, err := c.GetAllDevices()
 	if err != nil {
 		return nil, err
 	}
-	return &Device{c: c, path: path, obj: c.conn.Object(DBusService, path)}, nil
+	for _, d := range devs {
+		if name, nerr := d.InterfaceName(); nerr == nil && name == iface {
+			return d, nil
+		}
+	}
+	return nil, fmt.Errorf("device %q not found", iface)
 }
 
 // DeviceFromPath wraps a device object by its D-Bus path.
@@ -325,21 +338,22 @@ func (d *Device) IP6Config() (IPConfig, error) {
 
 // DeviceInfo is the JSON-friendly view of a device for the API.
 type DeviceInfo struct {
-	Path             string   `json:"path"`
-	Interface        string   `json:"interface"`
-	Kind             string   `json:"kind"`
-	TypeName         string   `json:"type_name"`
-	Driver           string   `json:"driver,omitempty"`
-	MAC              string   `json:"mac,omitempty"`
-	MTU              uint32   `json:"mtu"`
-	State            uint32   `json:"state"`
-	StateName        string   `json:"state_name"`
-	Managed          bool     `json:"managed"`
-	IPv4             IPConfig `json:"ipv4,omitempty"`
-	IPv6             IPConfig `json:"ipv6,omitempty"`
-	ActiveConnection string   `json:"active_connection,omitempty"`
-	Wireless         bool     `json:"wireless"`
-	AutoConnect      bool     `json:"autoconnect,omitempty"`
+	Path             string     `json:"path"`
+	Interface        string     `json:"interface"`
+	Kind             string     `json:"kind"`
+	TypeName         string     `json:"type_name"`
+	Driver           string     `json:"driver,omitempty"`
+	MAC              string     `json:"mac,omitempty"`
+	MTU              uint32     `json:"mtu"`
+	State            uint32     `json:"state"`
+	StateName        string     `json:"state_name"`
+	Managed          bool       `json:"managed"`
+	IPv4             IPConfig   `json:"ipv4,omitempty"`
+	IPv6             IPConfig   `json:"ipv6,omitempty"`
+	ActiveConnection string     `json:"active_connection,omitempty"`
+	Wireless         bool       `json:"wireless"`
+	Modem            *ModemInfo `json:"modem,omitempty"`
+	AutoConnect      bool       `json:"autoconnect,omitempty"`
 }
 
 // Info collects the full device information.
@@ -354,8 +368,13 @@ func (d *Device) Info() (DeviceInfo, error) {
 	if t, err := d.Type(); err == nil {
 		info.TypeName = DeviceTypeName(t)
 		info.Kind = info.TypeName
-		if t == DeviceTypeWiFi {
+		switch {
+		case t == DeviceTypeWiFi:
 			info.Wireless = true
+		case t == DeviceTypeModem || t == DeviceTypeWwan:
+			if m, err := d.Modem(); err == nil {
+				info.Modem = m
+			}
 		}
 	}
 	info.Driver, _ = d.Driver()

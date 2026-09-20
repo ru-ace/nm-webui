@@ -193,7 +193,6 @@ func IPv4Block(method string, addr StaticConfig) map[string]dbus.Variant {
 		block["dhcp-timeout"] = dbus.MakeVariant(int32(30))
 		// make sure stale static values are cleared
 		block["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{})
-		block["gateway"] = dbus.MakeVariant("")
 		block["dns"] = dbus.MakeVariant([]uint32{})
 	case "manual":
 		if addr.Address != "" {
@@ -214,7 +213,6 @@ func IPv4Block(method string, addr StaticConfig) map[string]dbus.Variant {
 	case "disabled":
 		block["method"] = dbus.MakeVariant("disabled")
 		block["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{})
-		block["gateway"] = dbus.MakeVariant("")
 		block["dns"] = dbus.MakeVariant([]uint32{})
 	}
 	return block
@@ -229,7 +227,6 @@ func IPv6Block(method string, addr StaticConfig) map[string]dbus.Variant {
 	case "auto":
 		block["dhcp-timeout"] = dbus.MakeVariant(int32(30))
 		block["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{})
-		block["gateway"] = dbus.MakeVariant("")
 		block["dns"] = dbus.MakeVariant([][]byte{})
 	case "manual":
 		if addr.Address != "" {
@@ -250,7 +247,6 @@ func IPv6Block(method string, addr StaticConfig) map[string]dbus.Variant {
 	case "disabled", "ignore":
 		block["method"] = dbus.MakeVariant("disabled")
 		block["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{})
-		block["gateway"] = dbus.MakeVariant("")
 		block["dns"] = dbus.MakeVariant([][]byte{})
 	}
 	return block

@@ -65,6 +65,46 @@ func BuildWiFiSettings(ssid, password string) (map[string]map[string]dbus.Varian
 	return settings, nil
 }
 
+// BuildGSMSettings constructs the D-Bus settings block for a mobile
+// broadband (gsm / 4G-5G) profile.
+func BuildGSMSettings(name, apn, number, username, password, pin string) (map[string]map[string]dbus.Variant, error) {
+	uuid, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	gsm := map[string]dbus.Variant{}
+	if apn != "" {
+		gsm["apn"] = dbus.MakeVariant(apn)
+	}
+	if number == "" {
+		number = "*99#"
+	}
+	gsm["number"] = dbus.MakeVariant(number)
+	if username != "" {
+		gsm["username"] = dbus.MakeVariant(username)
+	}
+	if password != "" {
+		gsm["password"] = dbus.MakeVariant(password)
+		// Store the secret inside the profile (NM secret flags: 0 = stored).
+		gsm["password-flags"] = dbus.MakeVariant(uint32(0))
+	}
+	if pin != "" {
+		gsm["pin"] = dbus.MakeVariant(pin)
+		gsm["pin-flags"] = dbus.MakeVariant(uint32(0))
+	}
+	return map[string]map[string]dbus.Variant{
+		"connection": {
+			"type":        dbus.MakeVariant("gsm"),
+			"id":          dbus.MakeVariant(name),
+			"uuid":        dbus.MakeVariant(uuid),
+			"autoconnect": dbus.MakeVariant(true),
+		},
+		"gsm":  gsm,
+		"ipv4": {"method": dbus.MakeVariant("auto")},
+		"ipv6": {"method": dbus.MakeVariant("auto")},
+	}, nil
+}
+
 // FindWiFiConnection locates a saved profile with the given SSID.
 func (c *Client) FindWiFiConnection(ssid string) (*Connection, error) {
 	conns, err := c.ListConnections()

@@ -11,8 +11,9 @@ listen: "0.0.0.0:8080"
 auth-pass: ""
 
 # Regex to filter visible interfaces (default: physical only)
-# Excludes docker/veth/virbr/vboxnet/etc.
-interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+# Excludes docker/veth/virbr/vboxnet/etc. "cdc" covers mobile
+# broadband control ports such as cdc-wdm0.
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 
 # Enable HTTPS with auto-generated self-signed cert or provided files
 tls: false

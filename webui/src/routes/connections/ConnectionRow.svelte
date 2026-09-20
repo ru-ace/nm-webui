@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, Copy, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings } from 'lucide-svelte';
+  import { ChevronDown, ChevronUp, Copy, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings, Smartphone } from 'lucide-svelte';
   import { activateConnection, deactivateConnection, toggleAutoconnect, forgetConnection } from '$lib/stores/app';
 
   export let conn: any;
@@ -10,6 +10,7 @@
 
   function getTypeIconType() {
     if (conn.is_wifi) return 'wifi';
+    if (conn.is_modem) return 'modem';
     if (conn.type_name === 'ethernet') return 'cable';
     return 'database';
   }
@@ -24,7 +25,7 @@
     <div class="flex items-start justify-between gap-4">
       <div class="flex items-center gap-3 flex-1 min-w-0">
         <div class="p-2 bg-primary/10 rounded-lg">
-          <svelte:component this={getTypeIconType() === 'wifi' ? Wifi : getTypeIconType() === 'cable' ? Cable : Database} class="w-4 h-4" />
+          <svelte:component this={getTypeIconType() === 'wifi' ? Wifi : getTypeIconType() === 'cable' ? Cable : getTypeIconType() === 'modem' ? Smartphone : Database} class="w-4 h-4" />
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
@@ -34,6 +35,9 @@
             {/if}
             {#if conn.is_wifi && conn.ssid}
               <span class="badge badge-ghost badge-sm">"{conn.ssid}"</span>
+            {/if}
+            {#if conn.is_modem && conn.apn}
+              <span class="badge badge-ghost badge-sm">APN {conn.apn}</span>
             {/if}
           </div>
           <p class="text-sm text-base-content/60 truncate">
@@ -92,6 +96,9 @@
           </div>
           <div><span class="text-base-content/60">Type</span><br><span>{conn.type_name}</span></div>
           <div><span class="text-base-content/60">Autoconnect</span><br><span>{conn.autoconnect ? 'Yes' : 'No'}</span></div>
+          {#if conn.is_modem && conn.apn}
+            <div class="md:col-span-2"><span class="text-base-content/60">APN</span><br><span class="font-mono text-xs">{conn.apn}</span></div>
+          {/if}
           <div><span class="text-base-content/60">IPv4 Method</span><br><span class="badge badge-ghost">{conn.ipv4_method}</span></div>
           <div><span class="text-base-content/60">IPv6 Method</span><br><span class="badge badge-ghost">{conn.ipv6_method}</span></div>
           {#if conn.static4}

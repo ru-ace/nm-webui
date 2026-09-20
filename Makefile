@@ -103,7 +103,7 @@ config-example:
 	@echo "" >> config.yaml.example
 	@echo "listen: \"0.0.0.0:8080\"" >> config.yaml.example
 	@echo "auth-pass: \"\"" >> config.yaml.example
-	@echo "interface-filter: \"^(eth|en|wlan|wifi|wwan|wl|ra|usb)[0-9A-Za-z.@_-]*$$\"" >> config.yaml.example
+	@echo "interface-filter: \"^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$$\"" >> config.yaml.example
 	@echo "tls: false" >> config.yaml.example
 	@echo "tls-cert: \"\"" >> config.yaml.example
 	@echo "tls-key: \"\"" >> config.yaml.example

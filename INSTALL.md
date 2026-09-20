@@ -117,7 +117,7 @@ Edit `/etc/nm-webui/config.yaml`:
 ```yaml
 listen: "0.0.0.0:8080"           # Listen address
 auth-pass: "your-secure-password" # Set a password!
-interface-filter: "^(eth|en|wlan|wifi|wwan|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false                        # Enable HTTPS
 tls-cert: ""                      # Custom cert path
 tls-key: ""                       # Custom key path

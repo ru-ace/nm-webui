@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Server, Cable, Wifi, Database, Cpu, Loader2, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2 } from 'lucide-svelte';
+  import { Server, Cable, Wifi, Database, Cpu, Loader2, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from 'lucide-svelte';
   import { devices, loading, loadDevices, activateConnection, deactivateConnection } from '$lib/stores/app';
   import DeviceCard from './DeviceCard.svelte';
 
@@ -8,7 +8,8 @@
 
   $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet');
   $: wifiDevices = $devices.filter(d => d.wireless);
-  $: otherDevices = $devices.filter(d => d.type_name !== 'ethernet' && !d.wireless);
+  $: modemDevices = $devices.filter(d => !!d.modem);
+  $: otherDevices = $devices.filter(d => d.type_name !== 'ethernet' && !d.wireless && !d.modem);
   $: loadingMap = $loading;
 </script>
 
@@ -43,6 +44,20 @@
       </h2>
       <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {#each wifiDevices as device}
+          <DeviceCard {device} {loadingMap} />
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if modemDevices.length > 0}
+    <section>
+      <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+        <Smartphone class="w-5 h-5 text-primary" />
+        Mobile Broadband
+      </h2>
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {#each modemDevices as device}
           <DeviceCard {device} {loadingMap} />
         {/each}
       </div>

@@ -27,6 +27,10 @@ type connRequest struct {
 	Type        string     `json:"type"`
 	SSID        string     `json:"ssid"`
 	Password    string     `json:"password"`
+	APN         string     `json:"apn"`
+	Number      string     `json:"number"`
+	UserName    string     `json:"username"`
+	PIN         string     `json:"pin"`
 	IPv4        *ipSetting `json:"ipv4"`
 	IPv6        *ipSetting `json:"ipv6"`
 }
@@ -126,6 +130,29 @@ func (s *Server) handleConnectionsCreate(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
+	if mapConType(req.Type) == "gsm" {
+		gsm := map[string]dbus.Variant{}
+		if req.APN != "" {
+			gsm["apn"] = dbus.MakeVariant(req.APN)
+		}
+		number := req.Number
+		if number == "" {
+			number = "*99#"
+		}
+		gsm["number"] = dbus.MakeVariant(number)
+		if req.UserName != "" {
+			gsm["username"] = dbus.MakeVariant(req.UserName)
+		}
+		if req.Password != "" {
+			gsm["password"] = dbus.MakeVariant(req.Password)
+			gsm["password-flags"] = dbus.MakeVariant(uint32(0))
+		}
+		if req.PIN != "" {
+			gsm["pin"] = dbus.MakeVariant(req.PIN)
+			gsm["pin-flags"] = dbus.MakeVariant(uint32(0))
+		}
+		settings["gsm"] = gsm
+	}
 	if req.IPv4 != nil || req.IPv6 != nil {
 		settings["ipv4"] = ipv4FromRequest(req.IPv4)
 		settings["ipv6"] = ipv6FromRequest(req.IPv6)
@@ -145,6 +172,8 @@ func mapConType(t string) string {
 	switch strings.ToLower(t) {
 	case "wifi", "wireless", "802-11-wireless":
 		return "802-11-wireless"
+	case "gsm", "mobile-broadband", "mobile", "4g", "5g":
+		return "gsm"
 	case "bridge":
 		return "bridge"
 	default:
@@ -226,6 +255,44 @@ func (s *Server) handleConnectionsUpdate(w http.ResponseWriter, r *http.Request)
 			connection["interface-name"] = dbus.MakeVariant(req.Interface)
 		} else if req.ID != "" {
 			delete(connection, "interface-name")
+		}
+		if err := conn.Update(settings); err != nil {
+			httpError(w, err)
+			return
+		}
+	}
+	if req.APN != "" || req.Number != "" || req.UserName != "" || req.PIN != "" || req.Password != "" {
+		conn, err := s.nm.ConnectionByUUID(uuid)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		settings, err := conn.GetSettings()
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		gsm := settings["gsm"]
+		if gsm == nil {
+			gsm = map[string]dbus.Variant{}
+			settings["gsm"] = gsm
+		}
+		if req.APN != "" {
+			gsm["apn"] = dbus.MakeVariant(req.APN)
+		}
+		if req.Number != "" {
+			gsm["number"] = dbus.MakeVariant(req.Number)
+		}
+		if req.UserName != "" {
+			gsm["username"] = dbus.MakeVariant(req.UserName)
+		}
+		if req.Password != "" {
+			gsm["password"] = dbus.MakeVariant(req.Password)
+			gsm["password-flags"] = dbus.MakeVariant(uint32(0))
+		}
+		if req.PIN != "" {
+			gsm["pin"] = dbus.MakeVariant(req.PIN)
+			gsm["pin-flags"] = dbus.MakeVariant(uint32(0))
 		}
 		if err := conn.Update(settings); err != nil {
 			httpError(w, err)

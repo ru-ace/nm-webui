@@ -13,8 +13,9 @@ import (
 
 const (
 	// DefaultInterfaceFilter excludes virtual interfaces (docker/veth/virbr/vbox)
-	// and keeps only physical ones by default.
-	DefaultInterfaceFilter = `^(eth|en|wlan|wifi|wwan|wwan0|wl|ra|usb)[0-9A-Za-z.@_-]*$`
+	// and keeps only physical ones by default. "cdc" covers mobile broadband
+	// control ports such as cdc-wdm0.
+	DefaultInterfaceFilter = `^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$`
 )
 
 // ErrHelp is returned when --help is requested.

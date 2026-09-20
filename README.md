@@ -16,6 +16,7 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 - **Wi-Fi Management**: Scan, connect to open/WPA2/WPA3 networks, manage saved profiles
 - **Saved Wi-Fi Credentials**: Existing NetworkManager profiles are reused without asking for the password again
 - **Network Interfaces**: View all devices, IP addresses, DNS, gateway, link status
+- **4G/5G Modems**: Mobile broadband devices with operator, signal strength, access technology (LTE/5G NR), SIM and IMEI info; APN-based profiles (connect/disconnect)
 - **IP Configuration**: Switch between DHCP, Static IP, or Disabled per interface
 - **Real-time Updates**: Server-Sent Events for live status changes
 - **External IP**: HTTPS-based public IP lookup, synchronized with NetworkManager connectivity, with manual cache refresh
@@ -63,7 +64,7 @@ Create `/etc/nm-webui/config.yaml`:
 ```yaml
 listen: "0.0.0.0:8080"
 auth-pass: "your-secure-password"  # Empty = no auth
-interface-filter: "^(eth|en|wlan|wifi|wwan|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false
 tls-cert: ""
 tls-key: ""
@@ -251,6 +252,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Wi-Fi**: Сканирование, подключение к открытым/WPA2/WPA3 сетям, управление сохранёнными профилями
 - **Сохранённые Wi-Fi данные**: Для известных NetworkManager сетей пароль повторно не запрашивается
 - **Сетевые интерфейсы**: Просмотр всех устройств, IP-адресов, DNS, шлюза, состояния линка
+- **4G/5G модемы**: Мобильные модемы с оператором, уровнем сигнала, технологией доступа (LTE/5G NR), данными SIM и IMEI; профили с APN (подключение/отключение)
 - **IP-конфигурация**: Переключение между DHCP, статическим IP или отключением на интерфейс
 - **Real-time**: Server-Sent Events для мгновенных обновлений статуса
 - **Внешний IP**: Получение через HTTPS, синхронизация со статусом подключения и ручное обновление кэша
@@ -294,7 +296,7 @@ sudo make install
 ```yaml
 listen: "0.0.0.0:8080"
 auth-pass: "ваш-надежный-пароль"  # Пусто = без авторизации
-interface-filter: "^(eth|en|wlan|wifi|wwan|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false
 tls-cert: ""
 tls-key: ""

@@ -76,7 +76,39 @@ export interface DeviceInfo {
   ipv6: IPConfig;
   active_connection: string;
   wireless: boolean;
+  modem?: ModemInfo;
   autoconnect: boolean;
+}
+
+export interface ModemSignal {
+  percent: number;
+  recent?: boolean;
+}
+
+export interface ModemSimInfo {
+  operator_name?: string;
+  operator_code?: string;
+  iccid?: string;
+  imsi?: string;
+  active?: boolean;
+}
+
+export interface ModemInfo {
+  apn?: string;
+  operator_code?: string;
+  operator_name?: string;
+  capabilities: number;
+  capabilities_text?: string;
+  signal?: ModemSignal;
+  state: number;
+  state_name?: string;
+  access_tech: number;
+  access_tech_name?: string;
+  manufacturer?: string;
+  model?: string;
+  imei?: string;
+  firmware?: string;
+  sim?: ModemSimInfo;
 }
 
 export interface IPConfig {
@@ -117,6 +149,9 @@ export interface ConnectionInfo {
   type_name: string;
   interface: string;
   ssid: string;
+  apn?: string;
+  number?: string;
+  username?: string;
   autoconnect: boolean;
   active: boolean;
   device: string;
@@ -125,6 +160,7 @@ export interface ConnectionInfo {
   static4: StaticConfig | null;
   static6: StaticConfig | null;
   is_wifi: boolean;
+  is_modem?: boolean;
 }
 
 export interface StaticConfig {
@@ -141,6 +177,10 @@ export interface ConnectionRequest {
   type: string;
   ssid?: string;
   password?: string;
+  apn?: string;
+  number?: string;
+  username?: string;
+  pin?: string;
   ipv4?: IPConfigRequest;
   ipv6?: IPConfigRequest;
 }
