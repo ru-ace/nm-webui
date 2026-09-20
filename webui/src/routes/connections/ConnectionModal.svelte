@@ -53,7 +53,7 @@
     };
   }
 
-  function handleSubmit(e: Event) {
+  async function handleSubmit(e: Event) {
     e.preventDefault();
     // Never rewrite the type of profiles the editor does not support (vpn,
     // loopback, ...): the backend maps unknown types to ethernet otherwise.
@@ -74,10 +74,15 @@
         ? { method: 'manual', address: form.ipv6.address, prefix: Number(form.ipv6.prefix), gateway: form.ipv6.gateway, dns: form.ipv6.dns.split(',').map(s => s.trim()).filter(Boolean) }
         : { method: form.ipv6.method }
     };
-    if (editing?.uuid) {
-      updateConnection(editing.uuid, data);
-    } else {
-      createConnection(data);
+    submitting = true;
+    try {
+      if (editing?.uuid) {
+        await updateConnection(editing.uuid, data);
+      } else {
+        await createConnection(data);
+      }
+    } finally {
+      submitting = false;
     }
     close();
   }
@@ -276,7 +281,7 @@
         <div class="modal-action mt-6">
           <button type="button" class="btn btn-ghost" onclick={close}>Cancel</button>
           <button type="submit" class="btn btn-primary gap-2" disabled={submitting}>
-            <div class="w-4 h-4" class:animate-spin={submitting}><Loader2 class="w-4 h-4" /></div>
+            {#if submitting}<Loader2 class="w-4 h-4 animate-spin" />{/if}
             {editing ? 'Update' : 'Create'}
           </button>
         </div>

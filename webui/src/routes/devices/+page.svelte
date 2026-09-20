@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Server, Cable, Wifi, Database, Cpu, Loader2, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from 'lucide-svelte';
+  import { Server, Cable, Wifi, Database, Cpu, Loader2, RefreshCw, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from 'lucide-svelte';
   import { devices, loading, loadDevices, activateConnection, deactivateConnection } from '$lib/stores/app';
   import DeviceCard from './DeviceCard.svelte';
 
@@ -17,7 +17,11 @@
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold">Network Devices</h1>
     <button class="btn btn-primary gap-2" onclick={loadDevices} disabled={$loading.devices}>
-      <div class="w-4 h-4" class:animate-spin={$loading.devices}><Loader2 class="w-4 h-4" /></div>
+      {#if $loading.devices}
+        <Loader2 class="w-4 h-4 animate-spin" />
+      {:else}
+        <RefreshCw class="w-4 h-4" />
+      {/if}
       Refresh
     </button>
   </div>
