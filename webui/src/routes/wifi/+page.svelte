@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Wifi, Loader2, Lock, Unlock, Shield, SignalHigh, SignalLow, RefreshCw } from 'lucide-svelte';
   import {
     devices,
@@ -16,6 +16,7 @@
   let selectedIface = '';
   let showPasswords = false;
   let scanning = false;
+  let autoScanTimer: ReturnType<typeof setInterval> | undefined;
 
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
   $: selectedDeviceObj = wifiDevices.find(d => d.interface === selectedIface);
@@ -25,6 +26,16 @@
     const params = new URLSearchParams(window.location.search);
     selectedIface = params.get('iface') || '';
     if (selectedIface) loadWifiNetworks(selectedIface);
+    // NetworkManager prunes access points that stop emitting beacons, so the
+    // network list collapses to the current network after a while. Re-scan
+    // quietly every 60 seconds to keep the list populated.
+    autoScanTimer = setInterval(() => {
+      void handleScan().catch(() => {});
+    }, 60_000);
+  });
+
+  onDestroy(() => {
+    if (autoScanTimer) clearInterval(autoScanTimer);
   });
 
   $: if (!selectedIface && wifiDevices.length > 0) {
