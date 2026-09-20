@@ -14,21 +14,16 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 ## Features
 
 - **Wi-Fi Management**: Scan, connect to open/WPA2/WPA3 networks, manage saved profiles
+- **Saved Wi-Fi Credentials**: Existing NetworkManager profiles are reused without asking for the password again
 - **Network Interfaces**: View all devices, IP addresses, DNS, gateway, link status
 - **IP Configuration**: Switch between DHCP, Static IP, or Disabled per interface
 - **Real-time Updates**: Server-Sent Events for live status changes
+- **External IP**: HTTPS-based public IP lookup, synchronized with NetworkManager connectivity, with manual cache refresh
+- **Themes**: Light, dark, or automatic device-system theme with a header toggle
 - **Authentication**: HTTP Basic Auth with rate limiting
 - **HTTPS**: Auto-generated self-signed certificates or custom certs
 - **Mobile-First UI**: Optimized for phone screens (travel router use case)
 - **Single Binary**: Go + embedded Svelte frontend, ~10MB static binary
-
----
-
-## Screenshots
-
-| Dashboard | Wi-Fi Networks | Devices | Profiles |
-|-----------|----------------|---------|----------|
-| ![Dashboard](docs/dashboard.png) | ![WiFi](docs/wifi.png) | ![Devices](docs/devices.png) | ![Profiles](docs/profiles.png) |
 
 ---
 
@@ -55,7 +50,7 @@ sudo mv nm-webui-linux-amd64 /usr/local/bin/nm-webui
 ```bash
 git clone https://github.com/ru-ace/nm-webui.git
 cd nm-webui
-make build        # Requires Go 1.22+ and Node.js 20+
+make build        # Requires Go 1.27+ and Node.js 20+
 sudo make install
 ```
 
@@ -111,6 +106,7 @@ Base path: `/api/v1`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/system/status` | System status, connectivity, external IP |
+| POST | `/system/external-ip/refresh` | Force an HTTPS external IP lookup and refresh the cache |
 | GET | `/devices` | List all network devices |
 | GET | `/devices/{iface}` | Device details |
 | POST | `/devices/{iface}/disconnect` | Disconnect device |
@@ -131,9 +127,22 @@ Base path: `/api/v1`
 
 - `connectivity_changed` - Internet connectivity status
 - `device_state_changed` - Device link/connection state
+- `devices_changed` - Network device added or removed
 - `scan_done` - Wi-Fi scan completed
+- `wifi_networks_changed` - Wi-Fi access point list changed
 - `connections_changed` - Profile added/removed
 - `wifi_connected` / `wifi_failed` - Connection result
+- `manager_state_changed` - NetworkManager state changed
+
+### External IP Behavior
+
+The public IP is resolved through an HTTPS request to `api64.ipify.org` and cached for five minutes. The cache is used only while NetworkManager reports `online` connectivity. When connectivity is not `online`, the API returns `external_ip: null` and invalidates the cached value.
+
+`GET /system/status` includes:
+
+- `external_ip` - Current public IPv4 or IPv6 address, or `null`
+- `external_ip_status` - `fresh`, `cached`, or `unavailable`
+- `external_ip_checked_at` - Timestamp of the last lookup result
 
 ---
 
@@ -160,7 +169,7 @@ Base path: `/api/v1`
                                    └─────────────────────────────┘
 ```
 
-- **Backend**: Go 1.22+, `github.com/godbus/dbus/v5`, `github.com/go-chi/chi/v5`
+- **Backend**: Go 1.27+, `github.com/godbus/dbus/v5`, `github.com/go-chi/chi/v5`
 - **Frontend**: Svelte 5, Vite, Tailwind CSS, DaisyUI, Lucide Icons
 - **Transport**: REST API + Server-Sent Events
 - **D-Bus**: Direct `org.freedesktop.NetworkManager` communication (no `nmcli`)
@@ -240,9 +249,12 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Возможности
 
 - **Wi-Fi**: Сканирование, подключение к открытым/WPA2/WPA3 сетям, управление сохранёнными профилями
+- **Сохранённые Wi-Fi данные**: Для известных NetworkManager сетей пароль повторно не запрашивается
 - **Сетевые интерфейсы**: Просмотр всех устройств, IP-адресов, DNS, шлюза, состояния линка
 - **IP-конфигурация**: Переключение между DHCP, статическим IP или отключением на интерфейс
 - **Real-time**: Server-Sent Events для мгновенных обновлений статуса
+- **Внешний IP**: Получение через HTTPS, синхронизация со статусом подключения и ручное обновление кэша
+- **Темы**: Светлая, тёмная или автоматическая тема устройства с переключателем в шапке
 - **Авторизация**: HTTP Basic Auth с защитой от брутфорса
 - **HTTPS**: Авто-генерируемые самоподписанные сертификаты или свои
 - **Mobile-First UI**: Оптимизировано для экранов телефонов (сценарий тревел-роутера)
@@ -271,7 +283,7 @@ sudo mv nm-webui-linux-amd64 /usr/local/bin/nm-webui
 ```bash
 git clone https://github.com/ru-ace/nm-webui.git
 cd nm-webui
-make build        # Требует Go 1.22+ и Node.js 20+
+make build        # Требует Go 1.27+ и Node.js 20+
 sudo make install
 ```
 
@@ -307,6 +319,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now nm-webui
 sudo journalctl -u nm-webui -f
 ```
+
+## API и SSE
+
+Базовый путь API: `/api/v1`.
+
+- `GET /system/status` — статус NetworkManager и connectivity.
+- `POST /system/external-ip/refresh` — принудительно обновить внешний IP через HTTPS.
+- `GET /events` — поток Server-Sent Events.
+
+Внешний IP показывается только при статусе `online`. При отсутствии интернета значение очищается. Успешный адрес кэшируется на пять минут; на Dashboard его можно обновить кнопкой внутри иконки щита.
+
+Основные SSE-события: `connectivity_changed`, `device_state_changed`, `devices_changed`, `scan_done`, `wifi_networks_changed`, `connections_changed`, `wifi_connected`, `wifi_failed`, `manager_state_changed`.
 
 ## Требования
 
