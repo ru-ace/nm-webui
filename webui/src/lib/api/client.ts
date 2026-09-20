@@ -58,6 +58,13 @@ export interface SystemStatus {
   external_ip: string | null;
   external_ip_status: 'fresh' | 'cached' | 'unavailable';
   external_ip_checked_at: string;
+  external_ip_country?: string;
+  external_ip_city?: string;
+  external_ip_region?: string;
+  external_ip_isp?: string;
+  external_ip_org?: string;
+  external_ip_asn?: string;
+  external_ip_timezone?: string;
   time: string;
 }
 

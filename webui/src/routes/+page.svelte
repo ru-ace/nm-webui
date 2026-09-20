@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, Globe, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -62,33 +62,10 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 gap-4">
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-base-content/60">Internet</p>
-            <p class="text-3xl font-bold flex items-center gap-2">
-              {#if $isOnline}
-                <CheckCircle class="w-8 h-8 text-success" />
-                <span>Online</span>
-              {:else if $connectivityStatus === 'limited'}
-                <AlertTriangle class="w-8 h-8 text-warning" />
-                <span>Limited</span>
-              {:else}
-                <XCircle class="w-8 h-8 text-error" />
-                <span>Offline</span>
-              {/if}
-            </p>
-          </div>
-          <Globe class="w-12 h-12 text-base-content/20" />
-        </div>
-      </div>
-    </div>
-
-    <div class="card bg-base-100 shadow-sm border border-base-300">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
+        <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <p class="text-sm text-base-content/60">External IP</p>
             {#if $systemStatus?.external_ip}
@@ -101,6 +78,11 @@
             {:else}
               <p class="font-mono text-lg font-medium">Unavailable</p>
             {/if}
+            {#if $systemStatus?.external_ip_city || $systemStatus?.external_ip_country}
+              <p class="text-sm text-base-content/70">
+                {#if $systemStatus?.external_ip_city}{$systemStatus.external_ip_city}{/if}{#if $systemStatus?.external_ip_city && $systemStatus?.external_ip_country}, {/if}{$systemStatus?.external_ip_country || ''}
+              </p>
+            {/if}
             <p class="text-xs text-base-content/50">
               {#if $systemStatus?.external_ip_status === 'cached'}
                 Cached result
@@ -110,6 +92,28 @@
                 {$isOnline ? 'HTTPS check failed' : 'Internet unavailable'}
               {/if}
             </p>
+            {#if $systemStatus?.external_ip_isp || $systemStatus?.external_ip_asn || $systemStatus?.external_ip_timezone}
+              <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2 mt-3 text-sm">
+                {#if $systemStatus?.external_ip_isp}
+                  <div class="min-w-0">
+                    <dt class="text-base-content/60">ISP</dt>
+                    <dd class="font-medium truncate" title={$systemStatus.external_ip_isp}>{$systemStatus.external_ip_isp}</dd>
+                  </div>
+                {/if}
+                {#if $systemStatus?.external_ip_asn}
+                  <div class="min-w-0">
+                    <dt class="text-base-content/60">ASN</dt>
+                    <dd class="font-mono text-xs truncate" title={$systemStatus.external_ip_asn}>{$systemStatus.external_ip_asn}</dd>
+                  </div>
+                {/if}
+                {#if $systemStatus?.external_ip_timezone}
+                  <div class="min-w-0">
+                    <dt class="text-base-content/60">Timezone</dt>
+                    <dd class="font-medium truncate" title={$systemStatus.external_ip_timezone}>{$systemStatus.external_ip_timezone}</dd>
+                  </div>
+                {/if}
+              </dl>
+            {/if}
           </div>
           <div class="relative h-12 w-12 shrink-0">
             <Shield class="h-12 w-12 text-base-content/20" />
