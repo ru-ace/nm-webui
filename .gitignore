@@ -1,0 +1,8 @@
+bin/
+dist/
+webui/node_modules/
+internal/webui/dist/*
+!internal/webui/dist/index.html
+*.test
+*.deb
+vendor/

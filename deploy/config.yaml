@@ -1,0 +1,26 @@
+# nm-webui configuration
+# Copy to /etc/nm-webui/config.yaml or use --config flag
+# All options can also be set via environment variables (NM_WEBUI_*)
+# or command line flags (highest priority)
+
+# HTTP listen address (IP:port)
+listen: "0.0.0.0:8080"
+
+# Admin password for HTTP Basic Auth (empty = no auth)
+# Can also be set via NM_WEBUI_AUTH_PASS env var
+auth-pass: ""
+
+# Regex to filter visible interfaces (default: physical only)
+# Excludes docker/veth/virbr/vboxnet/etc.
+interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|wl|ra|usb)[0-9A-Za-z.@_-]*$"
+
+# Enable HTTPS with auto-generated self-signed cert or provided files
+tls: false
+tls-cert: ""
+tls-key: ""
+
+# Log level: debug, info, warn, error
+log-level: "info"
+
+# WiFi connection timeout in seconds
+connect-timeout: 45

@@ -1,0 +1,30 @@
+[Unit]
+Description=NetworkManager Web UI
+Documentation=https://github.com/ru-ace/nm-webui
+After=network.target NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/nm-webui --config /etc/nm-webui/config.yaml
+Restart=always
+RestartSec=5
+User=root
+# For non-root, add user to 'netdev' group and set:
+# User=nm-webui
+# Group=netdev
+# AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+# CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nm-webui /run/nm-webui
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target
