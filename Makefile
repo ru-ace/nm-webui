@@ -73,6 +73,9 @@ deb: cross-arm64 cross-amd64
 		sed -e "s/^Version:.*/Version: $(DEB_VERSION)/" \
 		    -e "s/^Architecture:.*/Architecture: $$arch/" \
 		    $(DEB_CONTROL) > $(DIST_DIR)/deb/DEBIAN/control; \
+		if [ -n "$$(tail -c1 $(DIST_DIR)/deb/DEBIAN/control)" ]; then \
+			printf '\n' >> $(DIST_DIR)/deb/DEBIAN/control; \
+		fi; \
 		dpkg-deb --build --root-owner-group $(DIST_DIR)/deb \
 			$(DIST_DIR)/$(BINARY)_$(DEB_VERSION)_$$arch.deb; \
 	done
