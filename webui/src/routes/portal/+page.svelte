@@ -206,7 +206,7 @@
       <CheckCircle class="w-6 h-6 shrink-0" />
       <div class="flex-1 min-w-0">
         <p class="font-semibold">Internet is available</p>
-        <p class="text-sm text-base-content/70">The portal sign-in completed or the network no longer requires it.</p>
+        <p class="text-sm text-success-content/70">The portal sign-in completed or the network no longer requires it.</p>
       </div>
       <button class="btn btn-sm" onclick={() => navigate('/')}>Go to dashboard</button>
     </div>

@@ -107,8 +107,8 @@ export NM_WEBUI_POWER_ACTION_PASSWORD="secret"
 
 The **Power** page asks for this password and offers two buttons:
 
-- **Reboot** (yellow / warning) — restarts the host;
-- **Power off** (red / error) — shuts the host down.
+- **Reboot** — restarts the host;
+- **Power off** — shuts the host down.
 
 Both open a confirmation dialog warning that the server will become
 unavailable; the action button stays disabled until a confirmation checkbox

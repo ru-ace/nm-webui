@@ -70,7 +70,7 @@
       <ShieldAlert class="w-6 h-6 shrink-0" />
       <div class="flex-1 min-w-0">
         <p class="font-semibold">Captive portal detected</p>
-        <p class="text-sm text-base-content/70">Sign in to the network on the host to unlock internet access for clients.</p>
+        <p class="text-sm text-warning-content/70">Sign in to the network on the host to unlock internet access for clients.</p>
       </div>
       <div class="flex gap-2 shrink-0">
         <button
@@ -118,7 +118,7 @@
             {/if}
             {#if $systemStatus?.external_ip_city || $systemStatus?.external_ip_country}
               <p class="text-sm text-base-content/70">
-                {#if $systemStatus?.external_ip_city}{$systemStatus.external_ip_city}{/if}{#if $systemStatus?.external_ip_city && $systemStatus?.external_ip_country}, {/if}{$systemStatus?.external_ip_country || ''}
+                {[$systemStatus?.external_ip_city, $systemStatus?.external_ip_country].filter(Boolean).join(', ')}
               </p>
             {/if}
             <p class="text-xs text-base-content/50">

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
   import { features } from '$lib/stores/app';
-  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, PowerOff, RotateCcw } from 'lucide-svelte';
+  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, RotateCcw } from 'lucide-svelte';
   import { fly } from 'svelte/transition';
 
   type PowerAction = 'reboot' | 'poweroff';
@@ -121,7 +121,7 @@
             disabled={!canSubmit}
             onclick={() => open('poweroff')}
           >
-            <PowerOff class="w-4 h-4" />
+            <Power class="w-4 h-4" />
             Power off
           </button>
           {#if actionSent}
@@ -134,7 +134,7 @@
 
         <p class="text-sm text-base-content/60 flex items-center gap-1.5">
           <Lock class="w-4 h-4" />
-          Reboot (yellow, warning) and Power off (red, error) both require the power password and an explicit confirmation.
+          Reboot and Power off both require the power password and an explicit confirmation.
         </p>
       </div>
     </div>
