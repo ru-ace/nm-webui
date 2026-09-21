@@ -1,12 +1,12 @@
 # nm-webui
 
-![Version](https://img.shields.io/github/v/tag/ru-ace/nm-webui?label=version)
-![License](https://img.shields.io/github/license/ru-ace/nm-webui)
-![Go Version](https://img.shields.io/github/go-mod/go-version/ru-ace/nm-webui)
+[![Version](https://img.shields.io/github/v/release/ru-ace/nm-webui?sort=semver&label=version)](https://github.com/ru-ace/nm-webui/releases/latest)
+[![License](https://img.shields.io/github/license/ru-ace/nm-webui)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/ru-ace/nm-webui)](go.mod)
 
 Lightweight web interface for NetworkManager. Designed for travel routers and headless Linux devices. Single static binary, no external dependencies.
 
-**[Русская версия](README.ru.md) · [Installation Guide](install.md)**
+**[Русская версия](README.ru.md) · [Installation Guide](INSTALL.md)**
 
 ---
 
@@ -32,7 +32,7 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 
 Pre-built binaries, building from source, Debian package, install script,
 configuration, systemd service, firewall and troubleshooting are all covered
-in the **[Installation Guide](install.md)**.
+in the **[Installation Guide](INSTALL.md)**.
 
 Requirements: Linux with NetworkManager 1.30+, D-Bus system bus access
 (root or `netdev` group).
@@ -206,7 +206,7 @@ make deb
 ```
 
 Building and installing the binary on a device is described in the
-[Installation Guide](install.md) (Method 2: Build from Source). Run the full
+[Installation Guide](INSTALL.md) (Method 2: Build from Source). Run the full
 check suite with `make test && make lint`.
 
 ---

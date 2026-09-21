@@ -1,12 +1,12 @@
 # nm-webui
 
-![Версия](https://img.shields.io/github/v/tag/ru-ace/nm-webui?label=версия)
-![Лицензия](https://img.shields.io/github/license/ru-ace/nm-webui)
-![Версия Go](https://img.shields.io/github/go-mod/go-version/ru-ace/nm-webui)
+[![Версия](https://img.shields.io/github/v/release/ru-ace/nm-webui?sort=semver&label=версия)](https://github.com/ru-ace/nm-webui/releases/latest)
+[![Лицензия](https://img.shields.io/github/license/ru-ace/nm-webui)](LICENSE)
+[![Версия Go](https://img.shields.io/github/go-mod/go-version/ru-ace/nm-webui)](go.mod)
 
 Лёгкий веб-интерфейс для управления NetworkManager. Создан для тревел-роутеров и безголовых Linux-устройств. Один статический бинарник, никаких внешних зависимостей.
 
-**[English version](README.md) · [Руководство по установке](install.ru.md)**
+**[English version](README.md) · [Руководство по установке](INSTALL.ru.md)**
 
 ---
 
@@ -32,7 +32,7 @@
 
 Готовые бинарники, сборка из исходников, Debian-пакет, установочный скрипт,
 конфигурация, systemd-сервис, фаервол и решение проблем — всё это описано в
-**[руководстве по установке](install.ru.md)**.
+**[руководстве по установке](INSTALL.ru.md)**.
 
 Требования: Linux с NetworkManager 1.30+, доступ к системной шине D-Bus
 (root или группа `netdev`).
@@ -208,7 +208,7 @@ make deb
 ```
 
 Сборка и установка бинарника на устройстве описаны в
-[руководстве по установке](install.ru.md) (Способ 2: сборка из исходников).
+[руководстве по установке](INSTALL.ru.md) (Способ 2: сборка из исходников).
 Полная проверка: `make test && make lint`.
 
 ---
