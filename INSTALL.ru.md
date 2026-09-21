@@ -126,6 +126,7 @@ tls-cert: ""                      # Путь к сертификату
 tls-key: ""                       # Путь к ключу
 log-level: "info"                 # debug, info, warn, error
 connect-timeout: 45               # Таймаут подключения WiFi (сек)
+power-action-password: ""         # Пароль для раздела Power (перезагрузка/выключение; пусто = выключено)
 ```
 
 ### Переменные окружения
@@ -142,6 +143,7 @@ connect-timeout: 45               # Таймаут подключения WiFi (
 | `NM_WEBUI_CONNECT_TIMEOUT` | Таймаут подключения WiFi (сек) |
 | `NM_WEBUI_TLS` | `true`/`false` — включить HTTPS |
 | `NM_WEBUI_TLS_CERT` / `NM_WEBUI_TLS_KEY` | Пути к своему сертификату/ключу |
+| `NM_WEBUI_POWER_ACTION_PASSWORD` | Пароль раздела Power (перезагрузка/выключение; пусто = выключено) |
 | `NM_WEBUI_CONFIG` | Путь к файлу конфига (напр. `/etc/nm-webui/config.yaml`) |
 
 Опции портала (`NM_WEBUI_PORTAL_URLS`, `NM_WEBUI_PORTAL_ALLOW_JS`) описаны в
@@ -153,6 +155,7 @@ connect-timeout: 45               # Таймаут подключения WiFi (
 
 ```bash
 nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+nm-webui --power-action-password "secret"   # включить раздел Power
 ```
 
 Полный список опций: `nm-webui --help`.
@@ -217,6 +220,27 @@ sudo systemctl reload dbus
 sudo systemctl daemon-reload
 sudo systemctl restart nm-webui
 ```
+
+### Раздел Power от не-root пользователя
+
+Чтобы сервис-пользователь мог перезагружать/выключать хост через страницу
+Power:
+
+```bash
+# Дать ровно shutdown-команды, ничего больше
+sudo install -o root -g root -m 0440 deploy/sudoers/nm-webui-power /etc/sudoers.d/nm-webui-power
+sudo visudo -c
+
+# sudo — setuid-бинарник: в юните нужно отключить NoNewPrivileges,
+# иначе sudo не сможет получить root
+sudo sed -i 's/^NoNewPrivileges=.*/NoNewPrivileges=false/' /etc/systemd/system/nm-webui.service
+sudo systemctl daemon-reload
+sudo systemctl restart nm-webui
+```
+
+`deploy/install.sh` выполняет оба шага автоматически, когда ему передан
+не-root `[пользователь]`. Подробности — в разделе *Power* файла
+[README.ru.md](README.ru.md).
 
 ---
 

@@ -67,12 +67,33 @@ if [[ "$SERVICE_USER" != "root" ]]; then
     chmod 750 /var/lib/nm-webui
 fi
 
+# Install scoped sudo rules for the Power section (reboot/poweroff). Only
+# relevant for non-root service users — root executes shutdown directly.
+if [[ "$SERVICE_USER" != "root" ]]; then
+    SUDOERS_SRC="$SCRIPT_DIR/sudoers/nm-webui-power"
+    if [[ -f "$SUDOERS_SRC" ]]; then
+        echo "Installing scoped sudoers rule for Power section..."
+        SUDOERS_TMP="$(mktemp)"
+        sed "s/^nm-webui /$SERVICE_USER /" "$SUDOERS_SRC" > "$SUDOERS_TMP"
+        install -o root -g root -m 0440 "$SUDOERS_TMP" /etc/sudoers.d/nm-webui-power
+        rm -f "$SUDOERS_TMP"
+        visudo -c
+    else
+        echo "Warning: $SUDOERS_SRC not found; skipping sudoers install."
+    fi
+fi
+
 # Install systemd service
 if [[ "$INSTALL_SYSTEMD" == "true" ]]; then
     echo "Installing systemd service..."
     SERVICE_FILE="/etc/systemd/system/nm-webui.service"
     sed "s|ExecStart=.*|ExecStart=$BINARY_PATH --config $CONFIG_PATH|" "$SCRIPT_DIR/nm-webui.service" > "$SERVICE_FILE"
     sed -i "s/^User=.*/User=$SERVICE_USER/" "$SERVICE_FILE"
+    # sudo is setuid; NoNewPrivileges prevents it from gaining root, which
+    # would break the Power section for non-root installs.
+    if [[ "$SERVICE_USER" != "root" ]]; then
+        sed -i "s/^NoNewPrivileges=.*/NoNewPrivileges=false/" "$SERVICE_FILE"
+    fi
     systemctl daemon-reload
     systemctl enable nm-webui
     echo "Service installed. Start with: systemctl start nm-webui"
@@ -83,6 +104,7 @@ echo "=== Installation Complete ==="
 echo ""
 echo "Next steps:"
 echo "1. Edit $CONFIG_PATH to configure auth-pass and other settings"
+echo "   (Power section: set power-action-password to enable reboot/poweroff)"
 echo "2. Start the service: systemctl start nm-webui"
 echo "3. Check status: systemctl status nm-webui"
 echo "4. View logs: journalctl -u nm-webui -f"

@@ -8,3 +8,4 @@ Description: Web UI for NetworkManager
  Web-based UI for managing NetworkManager connections: WiFi, ethernet,
  hotspots and more. The Svelte frontend is embedded in a single static
  Go binary; no web server dependencies required.
+Recommends: sudo

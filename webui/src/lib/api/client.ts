@@ -19,7 +19,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   system: {
     status: () => request<SystemStatus>('/system/status'),
-    refreshExternalIP: () => request<Pick<SystemStatus, 'external_ip' | 'external_ip_status' | 'external_ip_checked_at'>>('/system/external-ip/refresh', { method: 'POST' })
+    refreshExternalIP: () => request<Pick<SystemStatus, 'external_ip' | 'external_ip_status' | 'external_ip_checked_at'>>('/system/external-ip/refresh', { method: 'POST' }),
+    features: () => request<SystemFeatures>('/system/features')
+  },
+  power: {
+    reboot: (password: string) => request<{ status: string }>('/system/power', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'reboot', password })
+    }),
+    poweroff: (password: string) => request<{ status: string }>('/system/power', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'poweroff', password })
+    })
   },
   devices: {
     list: () => request<{ devices: DeviceInfo[] }>('/devices'),
@@ -70,6 +81,10 @@ export interface SystemStatus {
   external_ip_asn?: string;
   external_ip_timezone?: string;
   time: string;
+}
+
+export interface SystemFeatures {
+  power: boolean;
 }
 
 export interface DeviceInfo {

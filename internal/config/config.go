@@ -36,6 +36,7 @@ type Config struct {
 	ConnectTimeout    int
 	CaptivePortalURLs []string
 	PortalAllowJS     bool
+	PowerActionPass   string
 	ShowVersion       bool
 }
 
@@ -90,6 +91,9 @@ func Load(args []string) (*Config, error) {
 	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_ALLOW_JS"); ok {
 		cfg.PortalAllowJS = v == "1" || strings.EqualFold(v, "true")
 	}
+	if v, ok := os.LookupEnv("NM_WEBUI_POWER_ACTION_PASSWORD"); ok {
+		cfg.PowerActionPass = v
+	}
 
 	// 2. Parse CLI flags
 	fs := flag.NewFlagSet("nm-webui", flag.ContinueOnError)
@@ -105,6 +109,7 @@ func Load(args []string) (*Config, error) {
 		flagConnectTimeout  int
 		flagPortalURLs      string
 		flagPortalAllowJS   bool
+		flagPowerActionPass string
 		flagVersion         bool
 		flagVersionShort    bool
 	)
@@ -120,6 +125,7 @@ func Load(args []string) (*Config, error) {
 	fs.IntVar(&flagConnectTimeout, "connect-timeout", cfg.ConnectTimeout, "wifi connect timeout in seconds")
 	fs.StringVar(&flagPortalURLs, "portal-check-urls", strings.Join(cfg.CaptivePortalURLs, ","), "comma-separated probe URLs for captive-portal detection")
 	fs.BoolVar(&flagPortalAllowJS, "portal-allow-js", cfg.PortalAllowJS, "allow portal JavaScript to run (sandboxed iframe; disable to strip scripts)")
+	fs.StringVar(&flagPowerActionPass, "power-action-password", cfg.PowerActionPass, "password for the Power section (reboot/poweroff); empty = Power section disabled")
 	fs.BoolVar(&flagVersion, "version", false, "print version and exit")
 	fs.BoolVar(&flagVersionShort, "v", false, "print version and exit")
 
@@ -184,6 +190,9 @@ func Load(args []string) (*Config, error) {
 	if set["portal-allow-js"] {
 		cfg.PortalAllowJS = flagPortalAllowJS
 	}
+	if set["power-action-password"] {
+		cfg.PowerActionPass = flagPowerActionPass
+	}
 
 	return cfg.finalize(), nil
 }
@@ -204,6 +213,7 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 		ConnectTimeout  *int    `yaml:"connect-timeout"`
 		PortalURLs      *string `yaml:"portal-check-urls"`
 		PortalAllowJS   *bool   `yaml:"portal-allow-js"`
+		PowerActionPass *string `yaml:"power-action-password"`
 	}
 	var fc fileCfg
 	if err := yaml.Unmarshal(data, &fc); err != nil {
@@ -238,6 +248,9 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 	}
 	if !set["portal-allow-js"] && fc.PortalAllowJS != nil {
 		c.PortalAllowJS = *fc.PortalAllowJS
+	}
+	if !set["power-action-password"] && fc.PowerActionPass != nil {
+		c.PowerActionPass = *fc.PowerActionPass
 	}
 	return nil
 }
@@ -276,4 +289,10 @@ func (c *Config) InterfaceAllowed(iface string) bool {
 // AuthEnabled reports whether a password is configured.
 func (c *Config) AuthEnabled() bool {
 	return c.AuthPass != ""
+}
+
+// PowerActionEnabled reports whether the Power section (reboot/poweroff)
+// is active. It is enabled when a power action password is configured.
+func (c *Config) PowerActionEnabled() bool {
+	return c.PowerActionPass != ""
 }

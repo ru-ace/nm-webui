@@ -22,6 +22,7 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 - **Captive Portal Bypass**: Detect hotel/airport sign-in pages, and sign in straight from the Web UI through a built-in proxy (invalid TLS certificates on portal side are ignored)
 - **Themes**: Light, dark, or automatic device-system theme with a header toggle
 - **Authentication**: HTTP Basic Auth with rate limiting
+- **Power**: Reboot or power off the host from the web UI with a separate password and an explicit confirmation step (opt-in)
 - **HTTPS**: Auto-generated self-signed certificates or custom certs
 - **Mobile-First UI**: Optimized for phone screens (travel router use case)
 - **Single Binary**: Go + embedded Svelte frontend, ~10MB static binary
@@ -87,6 +88,56 @@ stripped instead of being executed in the sandboxed iframe.
 
 ---
 
+## Power
+
+Optionally expose reboot / power off of the host from the web UI. The section
+is hidden by default and only appears when a separate power password is
+configured:
+
+```yaml
+# config.yaml
+power-action-password: "secret"
+```
+
+```bash
+# CLI / env
+nm-webui --power-action-password "secret"
+export NM_WEBUI_POWER_ACTION_PASSWORD="secret"
+```
+
+The **Power** page asks for this password and offers two buttons:
+
+- **Reboot** (yellow / warning) — restarts the host;
+- **Power off** (red / error) — shuts the host down.
+
+Both open a confirmation dialog warning that the server will become
+unavailable; the action button stays disabled until a confirmation checkbox
+is ticked. The password is checked server-side (constant-time comparison,
+rate limited like the admin login) before anything happens. Wrong passwords
+answer `401` and repeated failures are throttled.
+
+### How the commands are executed
+
+- Running as **root** (the default systemd unit): `shutdown -r now` /
+  `shutdown -h now` are executed directly.
+- Running as a **non-root service user**: the commands go through `sudo -n`.
+  Install the bundled scoped sudoers rule so the service user can run exactly
+  those two commands and nothing else:
+
+  ```bash
+  sudo install -o root -g root -m 0440 deploy/sudoers/nm-webui-power /etc/sudoers.d/nm-webui-power
+  sudo visudo -c
+  ```
+
+  `deploy/install.sh` installs this automatically when a non-root service
+  user is selected and sets `NoNewPrivileges=false` in the unit — the
+  hardening option would otherwise prevent the setuid `sudo` binary from
+  working (see the comments in `deploy/nm-webui.service`). On hosts without a
+  `shutdown` binary the same rules can be written for `systemctl reboot` /
+  `systemctl poweroff` instead.
+
+---
+
 ## API Reference
 
 Base path: `/api/v1`
@@ -94,6 +145,8 @@ Base path: `/api/v1`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/system/status` | System status, connectivity, external IP |
+| GET | `/system/features` | Optional sections enabled for this instance (e.g. `power`) |
+| POST | `/system/power` | Reboot/power off — body `{"action":"reboot"\|"poweroff","password":"…"}` (power password required) |
 | POST | `/system/external-ip/refresh` | Force an HTTPS external IP lookup and refresh the cache |
 | GET | `/devices` | List all network devices |
 | GET | `/devices/{iface}` | Device details |

@@ -126,6 +126,7 @@ tls-cert: ""                      # Custom cert path
 tls-key: ""                       # Custom key path
 log-level: "info"                 # debug, info, warn, error
 connect-timeout: 45               # WiFi connect timeout (seconds)
+power-action-password: ""         # Password for reboot/poweroff UI (empty = disabled)
 ```
 
 ### Environment Variables
@@ -142,6 +143,7 @@ Every option can also be set with `NM_WEBUI_*` environment variables
 | `NM_WEBUI_CONNECT_TIMEOUT` | WiFi connect timeout (seconds) |
 | `NM_WEBUI_TLS` | `true`/`false` — enable HTTPS |
 | `NM_WEBUI_TLS_CERT` / `NM_WEBUI_TLS_KEY` | Custom certificate/key paths |
+| `NM_WEBUI_POWER_ACTION_PASSWORD` | Power-section password (reboot/poweroff; empty = disabled) |
 | `NM_WEBUI_CONFIG` | Path to the config file (e.g. `/etc/nm-webui/config.yaml`) |
 
 Portal-specific options (`NM_WEBUI_PORTAL_URLS`, `NM_WEBUI_PORTAL_ALLOW_JS`) are
@@ -153,6 +155,7 @@ Flags override the config file and environment variables:
 
 ```bash
 nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+nm-webui --power-action-password "secret"   # enable the Power section
 ```
 
 Run `nm-webui --help` to list every option.
@@ -217,6 +220,26 @@ sudo systemctl reload dbus
 sudo systemctl daemon-reload
 sudo systemctl restart nm-webui
 ```
+
+### Power section as a non-root user
+
+To let the non-root service user reboot/power off the host via the Power page:
+
+```bash
+# Grant exactly the shutdown commands, nothing else
+sudo install -o root -g root -m 0440 deploy/sudoers/nm-webui-power /etc/sudoers.d/nm-webui-power
+sudo visudo -c
+
+# sudo is setuid: NoNewPrivileges must be disabled in the unit,
+# otherwise it can never gain root.
+sudo sed -i 's/^NoNewPrivileges=.*/NoNewPrivileges=false/' /etc/systemd/system/nm-webui.service
+sudo systemctl daemon-reload
+sudo systemctl restart nm-webui
+```
+
+`deploy/install.sh` performs both steps automatically when a non-root
+`[user]` is passed to it. See the *Power* section in
+[README.md](README.md) for details.
 
 ---
 

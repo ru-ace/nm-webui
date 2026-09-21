@@ -17,24 +17,28 @@ import (
 
 // Server holds the HTTP handlers and their dependencies.
 type Server struct {
-	cfg      *config.Config
-	nm       *nm.Client
-	hub      *events.Hub
-	resolver *system.Resolver
-	portal   *system.Detector
-	timeout  time.Duration
+	cfg        *config.Config
+	nm         *nm.Client
+	hub        *events.Hub
+	resolver   *system.Resolver
+	portal     *system.Detector
+	power      powerActions
+	powerGuard *attemptLimiter
+	timeout    time.Duration
 }
 
 // New creates the API server.
 func New(cfg *config.Config, client *nm.Client, hub *events.Hub) *Server {
 	jar, _ := cookiejar.New(nil)
 	return &Server{
-		cfg:      cfg,
-		nm:       client,
-		hub:      hub,
-		resolver: system.NewResolver(),
-		portal:   system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS),
-		timeout:  time.Duration(cfg.ConnectTimeout) * time.Second,
+		cfg:        cfg,
+		nm:         client,
+		hub:        hub,
+		resolver:   system.NewResolver(),
+		portal:     system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS),
+		power:      system.NewPowerController(),
+		powerGuard: newAttemptLimiter(time.Minute, 8),
+		timeout:    time.Duration(cfg.ConnectTimeout) * time.Second,
 	}
 }
 
@@ -53,7 +57,9 @@ func (s *Server) Handler() http.Handler {
 		r.Use(BasicAuth(s.cfg))
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/system/status", s.handleSystemStatus)
+			r.Get("/system/features", s.handleSystemFeatures)
 			r.Post("/system/external-ip/refresh", s.handleExternalIPRefresh)
+			r.Post("/system/power", s.handlePowerAction)
 			r.Get("/system/captive-portal", s.handleCaptivePortalStatus)
 			r.Post("/system/captive-portal/check", s.handleCaptivePortalCheck)
 			r.Get("/captive-portal/proxy", s.handlePortalProxyGet)

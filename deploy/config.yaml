@@ -25,3 +25,9 @@ log-level: "info"
 
 # WiFi connection timeout in seconds
 connect-timeout: 45
+
+# Password for the Power section (reboot / power off from the web UI).
+# Empty = section hidden. Non-root installs need deploy/sudoers/nm-webui-power
+# installed (deploy/install.sh does it automatically); see README.
+# Can also be set via NM_WEBUI_POWER_ACTION_PASSWORD env var.
+power-action-password: ""

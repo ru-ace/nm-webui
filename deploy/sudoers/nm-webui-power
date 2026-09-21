@@ -1,0 +1,23 @@
+# nm-webui — scoped sudo rules for the Power section (reboot / power off)
+#
+# The service user (default: nm-webui, see User= in nm-webui.service) may run
+# ONLY reboot/poweroff commands, without a password. Nothing else is granted.
+#
+# The shutdown binary lives in different places across distributions
+# (/usr/bin, /usr/sbin, /sbin — often a symlink to systemctl), so all
+# variants of the two actions are listed; modern sudo resolves symlinks, so a
+# /usr/bin/shutdown → systemctl symlink matches the systemctl entries below.
+#
+# Install (adjust the user if you run the service as something else):
+#   install -o root -g root -m 0440 deploy/sudoers/nm-webui-power /etc/sudoers.d/nm-webui-power
+#   visudo -c
+#
+# deploy/install.sh does this automatically when a non-root service user is
+# selected. The security hardening option NoNewPrivileges=true in the systemd
+# unit must be disabled for sudo (a setuid binary) to work — install.sh does
+# this for non-root installs; see the note in deploy/nm-webui.service.
+
+Cmnd_Alias NM_WEBUI_SHUTDOWN = /usr/bin/shutdown -r now, /usr/bin/shutdown -h now, /usr/sbin/shutdown -r now, /usr/sbin/shutdown -h now, /sbin/shutdown -r now, /sbin/shutdown -h now
+Cmnd_Alias NM_WEBUI_SYSTEMCTL = /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff
+
+nm-webui ALL=(root) NOPASSWD: NM_WEBUI_SHUTDOWN, NM_WEBUI_SYSTEMCTL

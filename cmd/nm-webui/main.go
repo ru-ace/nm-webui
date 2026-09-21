@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"path/filepath"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -50,6 +50,9 @@ func main() {
 
 	hub := events.NewHub(50)
 	server := api.New(cfg, client, hub)
+	if cfg.PowerActionEnabled() {
+		slog.Warn("power actions enabled: reboot/poweroff of the host are exposed through the web UI")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus, type CaptivePortalStatus } from '$lib/api/client';
+import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus, type CaptivePortalStatus, type SystemFeatures } from '$lib/api/client';
 
 export const systemStatus = writable<SystemStatus | null>(null);
 export const devices = writable<DeviceInfo[]>([]);
@@ -7,6 +7,7 @@ export const wifiNetworks = writable<NetworkInfo[]>([]);
 export const connections = writable<ConnectionInfo[]>([]);
 export const wifiStatusMap = writable<Record<string, WifiStatus>>({});
 export const captivePortal = writable<CaptivePortalStatus | null>(null);
+export const features = writable<SystemFeatures | null>(null);
 export const loading = writable<Record<string, boolean>>({});
 export const error = writable<string | null>(null);
 export const toast = writable<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -28,6 +29,15 @@ export async function loadSystemStatus() {
     systemStatus.set(status);
   } catch (e) {
     console.error('Failed to load system status:', e);
+  }
+}
+
+export async function loadFeatures() {
+  try {
+    const feat = await api.system.features();
+    features.set(feat);
+  } catch (e) {
+    console.error('Failed to load features:', e);
   }
 }
 

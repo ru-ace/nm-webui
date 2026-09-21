@@ -1,19 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentPath, navigate } from '$lib/stores/router';
-  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe } from 'lucide-svelte';
+  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe, Power } from 'lucide-svelte';
   import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
+  import { features } from '$lib/stores/app';
 
   onMount(initTheme);
 
   let menuOpen = false;
 
-  const navItems = [
+  $: navItems = [
     { href: '/', label: 'Dashboard', icon: Monitor },
     { href: '/wifi', label: 'Wi-Fi', icon: Wifi },
     { href: '/portal', label: 'Portal', icon: Globe },
     { href: '/devices', label: 'Devices', icon: Server },
-    { href: '/connections', label: 'Profiles', icon: Settings }
+    { href: '/connections', label: 'Profiles', icon: Settings },
+    // The Power section only exists when a power-action-password is configured.
+    ...($features?.power ? [{ href: '/power', label: 'Power', icon: Power }] : [])
   ];
 
   $: themeLabel = $themeMode === 'system' ? `System (${ $activeTheme })` : $themeMode === 'dark' ? 'Dark' : 'Light';
