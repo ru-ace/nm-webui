@@ -24,17 +24,19 @@ var ErrHelp = flag.ErrHelp
 // Config holds all service options. Order of precedence:
 // command line flags > config.yaml > environment variables > defaults.
 type Config struct {
-	Listen          string
-	AuthPass        string
-	InterfaceFilter string
-	InterfaceRe     *regexp.Regexp
-	TLS             bool
-	TLSCert         string
-	TLSKey          string
-	LogLevel        string
-	ConfigFile      string
-	ConnectTimeout  int
-	ShowVersion     bool
+	Listen            string
+	AuthPass          string
+	InterfaceFilter   string
+	InterfaceRe       *regexp.Regexp
+	TLS               bool
+	TLSCert           string
+	TLSKey            string
+	LogLevel          string
+	ConfigFile        string
+	ConnectTimeout    int
+	CaptivePortalURLs []string
+	PortalAllowJS     bool
+	ShowVersion       bool
 }
 
 // Load parses configuration from flags, file and environment.
@@ -48,6 +50,7 @@ func Load(args []string) (*Config, error) {
 		TLSKey:          "",
 		LogLevel:        "info",
 		ConnectTimeout:  45,
+		PortalAllowJS:   true,
 	}
 
 	// 1. Apply environment variables
@@ -81,6 +84,12 @@ func Load(args []string) (*Config, error) {
 	if v, ok := os.LookupEnv("NM_WEBUI_CONFIG"); ok {
 		cfg.ConfigFile = v
 	}
+	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_URLS"); ok {
+		cfg.CaptivePortalURLs = splitList(v)
+	}
+	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_ALLOW_JS"); ok {
+		cfg.PortalAllowJS = v == "1" || strings.EqualFold(v, "true")
+	}
 
 	// 2. Parse CLI flags
 	fs := flag.NewFlagSet("nm-webui", flag.ContinueOnError)
@@ -94,6 +103,8 @@ func Load(args []string) (*Config, error) {
 		flagLogLevel        string
 		flagConfigFile      string
 		flagConnectTimeout  int
+		flagPortalURLs      string
+		flagPortalAllowJS   bool
 		flagVersion         bool
 		flagVersionShort    bool
 	)
@@ -107,6 +118,8 @@ func Load(args []string) (*Config, error) {
 	fs.StringVar(&flagLogLevel, "log-level", cfg.LogLevel, "log level: debug, info, warn, error")
 	fs.StringVar(&flagConfigFile, "config", cfg.ConfigFile, "path to config.yaml")
 	fs.IntVar(&flagConnectTimeout, "connect-timeout", cfg.ConnectTimeout, "wifi connect timeout in seconds")
+	fs.StringVar(&flagPortalURLs, "portal-check-urls", strings.Join(cfg.CaptivePortalURLs, ","), "comma-separated probe URLs for captive-portal detection")
+	fs.BoolVar(&flagPortalAllowJS, "portal-allow-js", cfg.PortalAllowJS, "allow portal JavaScript to run (sandboxed iframe; disable to strip scripts)")
 	fs.BoolVar(&flagVersion, "version", false, "print version and exit")
 	fs.BoolVar(&flagVersionShort, "v", false, "print version and exit")
 
@@ -165,6 +178,12 @@ func Load(args []string) (*Config, error) {
 	if set["connect-timeout"] {
 		cfg.ConnectTimeout = flagConnectTimeout
 	}
+	if set["portal-check-urls"] {
+		cfg.CaptivePortalURLs = splitList(flagPortalURLs)
+	}
+	if set["portal-allow-js"] {
+		cfg.PortalAllowJS = flagPortalAllowJS
+	}
 
 	return cfg.finalize(), nil
 }
@@ -183,6 +202,8 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 		TLSKey          *string `yaml:"tls-key"`
 		LogLevel        *string `yaml:"log-level"`
 		ConnectTimeout  *int    `yaml:"connect-timeout"`
+		PortalURLs      *string `yaml:"portal-check-urls"`
+		PortalAllowJS   *bool   `yaml:"portal-allow-js"`
 	}
 	var fc fileCfg
 	if err := yaml.Unmarshal(data, &fc); err != nil {
@@ -212,7 +233,24 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 	if !set["connect-timeout"] && fc.ConnectTimeout != nil {
 		c.ConnectTimeout = *fc.ConnectTimeout
 	}
+	if !set["portal-check-urls"] && fc.PortalURLs != nil {
+		c.CaptivePortalURLs = splitList(*fc.PortalURLs)
+	}
+	if !set["portal-allow-js"] && fc.PortalAllowJS != nil {
+		c.PortalAllowJS = *fc.PortalAllowJS
+	}
 	return nil
+}
+
+// splitList splits a comma-separated configuration value into a trimmed list.
+func splitList(v string) []string {
+	var out []string
+	for _, p := range strings.Split(v, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func (c *Config) finalize() *Config {

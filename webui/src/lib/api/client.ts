@@ -43,6 +43,10 @@ export const api = {
     update: (uuid: string, data: ConnectionRequest) => request<ConnectionInfo>(`/connections/${encodeURIComponent(uuid)}`, { method: 'PUT', body: JSON.stringify(data) }),
     up: (uuid: string) => request<{ status: string; path: string }>(`/connections/${encodeURIComponent(uuid)}/up`, { method: 'POST' }),
     down: (uuid: string) => request<{ status: string }>(`/connections/${encodeURIComponent(uuid)}/down`, { method: 'POST' })
+  },
+  captivePortal: {
+    status: () => request<CaptivePortalStatus>('/system/captive-portal'),
+    check: () => request<CaptivePortalStatus>('/system/captive-portal/check', { method: 'POST' })
   }
 };
 
@@ -198,4 +202,15 @@ export interface IPConfigRequest {
   prefix?: number;
   gateway?: string;
   dns?: string[];
+}
+
+export interface CaptivePortalStatus {
+  state: 'portal' | 'online' | 'limited' | 'none' | 'unknown';
+  portal_url: string | null;
+  origin: string | null;
+  probe_url: string | null;
+  status: 'fresh' | 'cached' | 'unavailable';
+  checked_at: string | null;
+  nm_connectivity: number;
+  nm_connectivity_text: string;
 }

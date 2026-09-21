@@ -20,6 +20,7 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 - **IP Configuration**: Switch between DHCP, Static IP, or Disabled per interface
 - **Real-time Updates**: Server-Sent Events for live status changes
 - **External IP**: HTTPS-based public IP lookup, synchronized with NetworkManager connectivity, with manual cache refresh
+- **Captive Portal Bypass**: Detect hotel/airport sign-in pages, and sign in straight from the Web UI through a built-in proxy (invalid TLS certificates on portal side are ignored)
 - **Themes**: Light, dark, or automatic device-system theme with a header toggle
 - **Authentication**: HTTP Basic Auth with rate limiting
 - **HTTPS**: Auto-generated self-signed certificates or custom certs
@@ -89,6 +90,56 @@ nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
 
 ---
 
+## Captive Portal
+
+When the travel router joins a hotel/airport Wi-Fi that is gated by a captive
+portal, the web UI detects it by probing well-known check endpoints
+(`captive.apple.com`, `detectportal.firefox.com`) and offers a **Portal** page
+(a mini-browser in the SPA) to sign in on behalf of the host:
+
+- Detection combines the NetworkManager connectivity verdict with the probe
+  result; the sign-in page URL is taken from the probe.
+- The portal document is rendered in a sandboxed `<iframe>` whose `src` always
+  points at the proxy endpoint (`/api/v1/captive-portal/proxy?url=…`) — never
+  at the portal host directly — so portal hostnames are resolved only by the
+  Go proxy on the host (e.g. by the hotel's DNS) and never by the client
+  browser.
+- The proxy rewrites the document server-side (links, forms, styles, `srcset`,
+  meta-refresh) so everything resolves back through the proxy; forms are
+  submitted through the proxy and any portal session cookie is kept
+  server-side, so the sign-in sticks.
+- Portal JavaScript is enabled by default and runs inside the sandboxed iframe
+  (`allow-forms allow-scripts allow-popups allow-modals`, **without**
+  `allow-same-origin`), so the portal code executes in an opaque origin and
+  can never touch the admin SPA, its cookies or its API. A small telemetry
+  snippet keeps the mini-browser address bar and history in sync via
+  `postMessage`. Disable with `--portal-allow-js=false` to fall back to
+  stripping `<script>` and `on*` handlers entirely.
+- `<base>`, `<iframe>`, `<object>`, `<embed>` and per-control `formaction`/
+  `formmethod` attributes are always stripped by the proxy.
+- Portal certificates are **not verified** (self-signed/expired ones are the
+  norm), so HTTPS portals work out of the box.
+
+Probe URLs are configurable:
+
+```yaml
+# config.yaml
+portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+```
+
+```bash
+# CLI / env
+nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+```
+
+Portal JavaScript is on by default (`--portal-allow-js=true` /
+`NM_WEBUI_PORTAL_ALLOW_JS=true`). Set it to `false` to strip `<script>` and
+`on*` handlers from proxied pages instead of running them in the sandboxed
+iframe.
+
+---
+
 ## Systemd Service
 
 ```bash
@@ -122,6 +173,10 @@ Base path: `/api/v1`
 | PUT | `/connections/{uuid}` | Update profile |
 | POST | `/connections/{uuid}/up` | Activate profile |
 | POST | `/connections/{uuid}/down` | Deactivate profile |
+| GET | `/system/captive-portal` | Captive-portal detection status |
+| POST | `/system/captive-portal/check` | Force a connectivity/portal re-check |
+| GET | `/captive-portal/proxy?url=…` | Fetch (GET) a URL through the portal proxy |
+| POST | `/captive-portal/proxy` | Submit a portal form through the proxy (`url`, `_method`, fields) |
 | GET | `/events` | SSE event stream |
 
 ### SSE Events
@@ -256,6 +311,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **IP-конфигурация**: Переключение между DHCP, статическим IP или отключением на интерфейс
 - **Real-time**: Server-Sent Events для мгновенных обновлений статуса
 - **Внешний IP**: Получение через HTTPS, синхронизация со статусом подключения и ручное обновление кэша
+- **Прохождение Captive Portal**: Обнаружение страниц-«заглушек» в отелях/аэропортах и вход в сеть прямо из веб-интерфейса через встроенный прокси (невалидные TLS-сертификаты портала игнорируются)
 - **Темы**: Светлая, тёмная или автоматическая тема устройства с переключателем в шапке
 - **Авторизация**: HTTP Basic Auth с защитой от брутфорса
 - **HTTPS**: Авто-генерируемые самоподписанные сертификаты или свои
@@ -313,6 +369,53 @@ export NM_WEBUI_TLS="true"
 nm-webui
 ```
 
+## Captive Portal
+
+Когда тревел-роутер подключается к Wi-Fi отеля/аэропорта, закрытому
+captive portal, веб-интерфейс обнаруживает его опросом известных эндпоинтов
+(`captive.apple.com`, `detectportal.firefox.com`) и предлагает страницу
+**Portal** — мини-браузер внутри SPA — для входа на стороне хоста:
+
+- Диагностика объединяет вердикт NetworkManager и результат опроса; URL
+  страницы входа берётся из опроса.
+- Документ портала отрисовывается в песочнице `<iframe>`, чей `src` всегда
+  указывает на прокси-эндпоинт (`/api/v1/captive-portal/proxy?url=…`), а не
+  на хост портала напрямую, поэтому hostname портала резолвит только
+  Go-прокси на хосте (например, DNS гостиницы), но никогда браузер клиента.
+- Прокси переписывает документ на сервере (ссылки, формы, стили, `srcset`,
+  meta-refresh) так, что всё резолвится обратно через прокси; формы
+  отправляются через прокси, а session cookie портала хранится на стороне
+  сервера, поэтому вход «прилипает».
+- JavaScript портала включён по умолчанию и исполняется внутри песочницы
+  iframe (`allow-forms allow-scripts allow-popups allow-modals`, **без**
+  `allow-same-origin`): код портала работает в opaque origin и не может
+  добраться до SPA админки, её кук или API. Маленький телеметрия-скрипт
+  синхронизирует адресную строку и историю мини-браузера через
+  `postMessage`. Отключить — `--portal-allow-js=false`, тогда `<script>` и
+  обработчики `on*` вырезаются полностью.
+- `<base>`, `<iframe>`, `<object>`, `<embed>` и пер-элементные атрибуты
+  `formaction`/`formmethod` прокси вырезает всегда.
+- Сертификаты портала **не проверяются** (самоподписанные и протухшие —
+  обычное дело), поэтому HTTPS-порталы работают сразу.
+
+Список проверочных URL настраивается:
+
+```yaml
+# config.yaml
+portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+```
+
+```bash
+# CLI / env
+nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+```
+
+JavaScript портала включён по умолчанию (`--portal-allow-js=true` /
+`NM_WEBUI_PORTAL_ALLOW_JS=true`). Значение `false` вырезает `<script>` и
+обработчики `on*` из проксируемых страниц вместо исполнения их в песочнице
+iframe.
+
 ## Systemd
 
 ```bash
@@ -328,6 +431,9 @@ sudo journalctl -u nm-webui -f
 
 - `GET /system/status` — статус NetworkManager и connectivity.
 - `POST /system/external-ip/refresh` — принудительно обновить внешний IP через HTTPS.
+- `GET /system/captive-portal` — статус обнаружения captive portal.
+- `POST /system/captive-portal/check` — принудительная перепроверка connectivity/портала.
+- `GET/POST /captive-portal/proxy?url=…` — прокси-доступ к странице портала (GET-загрузка или POST-отправка формы с полями `url`, `_method`).
 - `GET /events` — поток Server-Sent Events.
 
 Внешний IP показывается только при статусе `online`. При отсутствии интернета значение очищается. Успешный адрес кэшируется на пять минут; на Dashboard его можно обновить кнопкой внутри иконки щита.

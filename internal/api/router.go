@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -20,16 +21,19 @@ type Server struct {
 	nm       *nm.Client
 	hub      *events.Hub
 	resolver *system.Resolver
+	portal   *system.Detector
 	timeout  time.Duration
 }
 
 // New creates the API server.
 func New(cfg *config.Config, client *nm.Client, hub *events.Hub) *Server {
+	jar, _ := cookiejar.New(nil)
 	return &Server{
 		cfg:      cfg,
 		nm:       client,
 		hub:      hub,
 		resolver: system.NewResolver(),
+		portal:   system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS),
 		timeout:  time.Duration(cfg.ConnectTimeout) * time.Second,
 	}
 }
@@ -50,6 +54,10 @@ func (s *Server) Handler() http.Handler {
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/system/status", s.handleSystemStatus)
 			r.Post("/system/external-ip/refresh", s.handleExternalIPRefresh)
+			r.Get("/system/captive-portal", s.handleCaptivePortalStatus)
+			r.Post("/system/captive-portal/check", s.handleCaptivePortalCheck)
+			r.Get("/captive-portal/proxy", s.handlePortalProxyGet)
+			r.Post("/captive-portal/proxy", s.handlePortalProxyPost)
 			r.Get("/devices", s.handleDeviceList)
 			r.Get("/devices/{iface}", s.handleDeviceGet)
 			r.Post("/devices/{iface}/disconnect", s.handleDeviceDisconnect)

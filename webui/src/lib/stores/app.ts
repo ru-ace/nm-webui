@@ -1,11 +1,12 @@
 import { writable, derived, get } from 'svelte/store';
-import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus } from '$lib/api/client';
+import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus, type CaptivePortalStatus } from '$lib/api/client';
 
 export const systemStatus = writable<SystemStatus | null>(null);
 export const devices = writable<DeviceInfo[]>([]);
 export const wifiNetworks = writable<NetworkInfo[]>([]);
 export const connections = writable<ConnectionInfo[]>([]);
 export const wifiStatusMap = writable<Record<string, WifiStatus>>({});
+export const captivePortal = writable<CaptivePortalStatus | null>(null);
 export const loading = writable<Record<string, boolean>>({});
 export const error = writable<string | null>(null);
 export const toast = writable<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -27,6 +28,34 @@ export async function loadSystemStatus() {
     systemStatus.set(status);
   } catch (e) {
     console.error('Failed to load system status:', e);
+  }
+}
+
+export async function loadCaptivePortal() {
+  try {
+    const status = await api.captivePortal.status();
+    captivePortal.set(status);
+  } catch (e) {
+    console.error('Failed to load captive portal status:', e);
+  }
+}
+
+export async function recheckCaptivePortal() {
+  try {
+    setLoading('portal', true);
+    const status = await api.captivePortal.check();
+    captivePortal.set(status);
+    await loadSystemStatus();
+    if (status.state === 'portal') {
+      showToast('Captive portal detected — sign in to continue', 'info');
+    } else {
+      showToast(`Connectivity: ${status.state}`, 'success');
+    }
+  } catch (e: any) {
+    console.error('Failed to recheck captive portal:', e);
+    showToast(`Recheck failed: ${e?.message || e}`, 'error');
+  } finally {
+    setLoading('portal', false);
   }
 }
 
@@ -306,6 +335,7 @@ function handleEvent(type: string, data: any) {
   switch (type) {
     case 'connectivity_changed':
       systemStatus.update(($s) => $s ? { ...$s, connectivity: data.status, connectivity_code: data.connectivity } : null);
+      void loadCaptivePortal();
       break;
     case 'device_state_changed':
       devices.update(($d) => $d.map(d => d.interface === data.iface ? { ...d, state: data.state, state_name: data.state_name } : d));

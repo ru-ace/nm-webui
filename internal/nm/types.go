@@ -166,7 +166,9 @@ func ConnectivityName(c uint32) string {
 	switch c {
 	case ConnectivityFull:
 		return "online"
-	case ConnectivityLimited, ConnectivityPortal:
+	case ConnectivityPortal:
+		return "portal"
+	case ConnectivityLimited:
 		return "limited"
 	case ConnectivityNone:
 		return "offline"

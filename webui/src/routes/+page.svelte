@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -11,7 +11,9 @@
     refreshExternalIP,
     loadWifiStatus,
     disconnectDevice,
-    connectDevice
+    connectDevice,
+    captivePortal,
+    recheckCaptivePortal
   } from '$lib/stores/app';
   import { navigate } from '$lib/stores/router';
   import { derived } from 'svelte/store';
@@ -29,7 +31,7 @@
 
   function getConnectivityClass(status: string) {
     if (status === 'online') return 'badge-success';
-    if (status === 'limited') return 'badge-warning';
+    if (status === 'limited' || status === 'portal') return 'badge-warning';
     return 'badge-error';
   }
 
@@ -53,7 +55,7 @@
       <span class="badge {getConnectivityClass($connectivityStatus)} gap-1">
         {#if $connectivityStatus === 'online'}
           <CheckCircle class="w-4 h-4" />
-        {:else if $connectivityStatus === 'limited'}
+        {:else if $connectivityStatus === 'limited' || $connectivityStatus === 'portal'}
           <AlertTriangle class="w-4 h-4" />
         {:else}
           <XCircle class="w-4 h-4" />
@@ -62,6 +64,41 @@
       </span>
     </div>
   </div>
+
+  {#if $connectivityStatus === 'portal' || $captivePortal?.state === 'portal'}
+    <div class="alert alert-warning shadow-sm">
+      <ShieldAlert class="w-6 h-6 shrink-0" />
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold">Captive portal detected</p>
+        <p class="text-sm text-base-content/70">Sign in to the network on the host to unlock internet access for clients.</p>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button
+          type="button"
+          class="btn btn-sm"
+          onclick={() => {
+            const portalUrl = $captivePortal?.portal_url;
+            navigate(portalUrl ? `/portal?url=${encodeURIComponent(portalUrl)}` : '/portal');
+          }}
+        >
+          Open portal
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm gap-1"
+          onclick={recheckCaptivePortal}
+          disabled={$loading['portal']}
+        >
+          {#if $loading['portal']}
+            <Loader2 class="w-4 h-4 animate-spin" />
+          {:else}
+            <RefreshCw class="w-4 h-4" />
+          {/if}
+          Recheck
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 gap-4">
     <div class="card bg-base-100 shadow-sm border border-base-300">

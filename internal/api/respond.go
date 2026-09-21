@@ -38,8 +38,10 @@ func statusText(c uint32) string {
 	switch c {
 	case 4:
 		return "online"
-	case 3, 2:
+	case 3:
 		return "limited"
+	case 2:
+		return "portal"
 	case 1:
 		return "offline"
 	default:

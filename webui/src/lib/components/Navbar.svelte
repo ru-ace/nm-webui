@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentPath, navigate } from '$lib/stores/router';
-  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog } from 'lucide-svelte';
+  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe } from 'lucide-svelte';
   import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
 
   onMount(initTheme);
@@ -11,6 +11,7 @@
   const navItems = [
     { href: '/', label: 'Dashboard', icon: Monitor },
     { href: '/wifi', label: 'Wi-Fi', icon: Wifi },
+    { href: '/portal', label: 'Portal', icon: Globe },
     { href: '/devices', label: 'Devices', icon: Server },
     { href: '/connections', label: 'Profiles', icon: Settings }
   ];
