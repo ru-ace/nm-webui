@@ -15,7 +15,10 @@
 
 <div class="space-y-6 max-w-6xl mx-auto">
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Network Devices</h1>
+    <div class="flex items-center gap-2">
+      <Server class="w-7 h-7 text-primary" />
+      <h1 class="text-2xl font-bold">Network Devices</h1>
+    </div>
     <button class="btn btn-primary gap-2" onclick={loadDevices} disabled={$loading.devices}>
       {#if $loading.devices}
         <Loader2 class="w-4 h-4 animate-spin" />

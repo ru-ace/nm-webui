@@ -30,7 +30,10 @@
 
 <div class="space-y-6 max-w-4xl mx-auto">
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Connection Profiles</h1>
+    <div class="flex items-center gap-2">
+      <Settings class="w-7 h-7 text-primary" />
+      <h1 class="text-2xl font-bold">Connection Profiles</h1>
+    </div>
     <button class="btn btn-primary gap-2" onclick={() => { editingConnection = null; showModal = true; }}>
       <Plus class="w-4 h-4" />
       New Profile

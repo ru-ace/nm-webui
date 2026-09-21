@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
   import { features } from '$lib/stores/app';
-  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, RotateCcw } from 'lucide-svelte';
+  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, RotateCcw, X } from 'lucide-svelte';
   import { fly } from 'svelte/transition';
 
   type PowerAction = 'reboot' | 'poweroff';
@@ -95,29 +95,23 @@
             placeholder="Power password"
             disabled={actionSent}
           />
-          <button
-            type="button"
-            class="btn btn-ghost btn-square absolute right-1 top-1/2 -translate-y-1/2"
-            onclick={() => showPassword = !showPassword}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {#if showPassword}<EyeOff class="w-5 h-5" />{:else}<Eye class="w-5 h-5" />{/if}
-          </button>
+          <div class="absolute right-1 top-1/2 -translate-y-1/2">
+            <button
+              type="button"
+              class="btn btn-ghost btn-square"
+              onclick={() => showPassword = !showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {#if showPassword}<EyeOff class="w-5 h-5" />{:else}<Eye class="w-5 h-5" />{/if}
+            </button>
+          </div>
         </div>
 
-        <div class="flex flex-wrap gap-3">
+        <div class="flex items-center justify-between gap-3">
           <button
             type="button"
-            class="btn btn-warning gap-2"
-            disabled={!canSubmit}
-            onclick={() => open('reboot')}
-          >
-            <RotateCcw class="w-4 h-4" />
-            Reboot
-          </button>
-          <button
-            type="button"
-            class="btn btn-error gap-2"
+            class="btn btn-error gap-2 shrink-0"
             disabled={!canSubmit}
             onclick={() => open('poweroff')}
           >
@@ -130,6 +124,15 @@
               action in progress
             </span>
           {/if}
+          <button
+            type="button"
+            class="btn btn-warning gap-2 shrink-0"
+            disabled={!canSubmit}
+            onclick={() => open('reboot')}
+          >
+            <RotateCcw class="w-4 h-4" />
+            Reboot
+          </button>
         </div>
 
         <p class="text-sm text-base-content/60 flex items-center gap-1.5">
@@ -143,7 +146,17 @@
 
 {#if pending}
   <div class="modal modal-open" role="dialog" aria-modal="true">
-    <div class="modal-box" in:fly={{ y: 20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+    <div class="modal-box relative" in:fly={{ y: 20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+      <button
+        type="button"
+        class="btn btn-ghost btn-circle absolute right-2 top-2"
+        onclick={cancel}
+        disabled={submitting}
+        aria-label="Close"
+        title="Close"
+      >
+        <X class="w-5 h-5" />
+      </button>
       <div class="flex items-start gap-3">
         <AlertTriangle class="w-6 h-6 shrink-0 {pending === 'poweroff' ? 'text-error' : 'text-warning'}" />
         <div>

@@ -102,7 +102,10 @@
 
 <div class="space-y-6 max-w-4xl mx-auto">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <h1 class="text-2xl font-bold">Wi-Fi Networks</h1>
+    <div class="flex items-center gap-2">
+      <Wifi class="w-7 h-7 text-primary" />
+      <h1 class="text-2xl font-bold">Wi-Fi Networks</h1>
+    </div>
     <div class="flex items-center gap-2">
       <select
         bind:value={selectedIface}
@@ -215,7 +218,7 @@
                       onclick={() => handleConnect(network)}
                       disabled={loadingMap[`connect-${selectedIface}`]}
                     >
-                      {network.security === 'open' ? 'Connect' : 'Join'}
+                      Join
                     </button>
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert, Monitor } from 'lucide-svelte';
   import {
     systemStatus,
     devices,
@@ -50,7 +50,10 @@
 
 <div class="space-y-6 max-w-4xl mx-auto">
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Dashboard</h1>
+    <div class="flex items-center gap-2">
+      <Monitor class="w-7 h-7 text-primary" />
+      <h1 class="text-2xl font-bold">Dashboard</h1>
+    </div>
     <div class="flex items-center gap-2">
       <span class="badge {getConnectivityClass($connectivityStatus)} gap-1">
         {#if $connectivityStatus === 'online'}

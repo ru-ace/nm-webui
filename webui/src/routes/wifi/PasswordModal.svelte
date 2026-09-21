@@ -34,7 +34,16 @@
 
 {#if $passwordModal}
   <div class="modal modal-open" role="dialog">
-    <div class="modal-box" in:fly={{ y: 20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+    <div class="modal-box relative" in:fly={{ y: 20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+      <button
+        type="button"
+        class="btn btn-ghost btn-circle absolute right-2 top-2"
+        onclick={close}
+        aria-label="Close"
+        title="Close"
+      >
+        <X class="w-5 h-5" />
+      </button>
       <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
         <Lock class="w-5 h-5" />
         Connect to "{$passwordModal.ssid}"
@@ -49,13 +58,17 @@
           placeholder="Password"
           onkeydown={handleKeydown}
         />
-        <button
-          type="button"
-          class="btn btn-ghost btn-square absolute right-1 top-1/2 -translate-y-1/2"
-          onclick={() => showPassword = !showPassword}
-        >
-          <svelte:component this={eyeIcon} class="w-5 h-5" />
-        </button>
+        <div class="absolute right-1 top-1/2 -translate-y-1/2">
+          <button
+            type="button"
+            class="btn btn-ghost btn-square"
+            onclick={() => showPassword = !showPassword}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+          >
+            <svelte:component this={eyeIcon} class="w-5 h-5" />
+          </button>
+        </div>
       </div>
       <div class="modal-action mt-4">
         <button type="button" class="btn btn-ghost" onclick={close}>Cancel</button>
