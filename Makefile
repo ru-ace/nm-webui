@@ -12,6 +12,8 @@ BINARY := nm-webui
 DIST_DIR := dist
 WEBUI_DIR := webui
 INTERNAL_WEBUI_DIST := internal/webui/dist
+DEB_CONTROL := deploy/debian/control
+DEB_VERSION := $(VERSION:v%=%)
 
 all: build
 
@@ -56,17 +58,24 @@ uninstall:
 	rm -f /etc/nm-webui/config.yaml
 	systemctl daemon-reload
 
-# Debian package
+# Debian packages (ARM64 + AMD64)
 deb: cross-arm64 cross-amd64
 	@mkdir -p $(DIST_DIR)/deb/DEBIAN
 	@mkdir -p $(DIST_DIR)/deb/usr/local/bin
 	@mkdir -p $(DIST_DIR)/deb/etc/systemd/system
 	@mkdir -p $(DIST_DIR)/deb/etc/nm-webui
-	cp $(DIST_DIR)/$(BINARY)-linux-arm64 $(DIST_DIR)/deb/usr/local/bin/$(BINARY)
 	cp deploy/nm-webui.service $(DIST_DIR)/deb/etc/systemd/system/
 	cp deploy/config.yaml $(DIST_DIR)/deb/etc/nm-webui/
-	sed -i "s/^Version:.*/Version: $(VERSION)/" $(DIST_DIR)/deb/DEBIAN/control
-	dpkg-deb --build $(DIST_DIR)/deb $(DIST_DIR)/$(BINARY)_$(VERSION)_arm64.deb
+	@echo "/etc/nm-webui/config.yaml" > $(DIST_DIR)/deb/DEBIAN/conffiles
+	@for arch in arm64 amd64; do \
+		echo "Building $(BINARY)_$(DEB_VERSION)_$$arch.deb"; \
+		cp $(DIST_DIR)/$(BINARY)-linux-$$arch $(DIST_DIR)/deb/usr/local/bin/$(BINARY); \
+		sed -e "s/^Version:.*/Version: $(DEB_VERSION)/" \
+		    -e "s/^Architecture:.*/Architecture: $$arch/" \
+		    $(DEB_CONTROL) > $(DIST_DIR)/deb/DEBIAN/control; \
+		dpkg-deb --build --root-owner-group $(DIST_DIR)/deb \
+			$(DIST_DIR)/$(BINARY)_$(DEB_VERSION)_$$arch.deb; \
+	done
 
 # RPM package (requires rpmbuild)
 rpm: cross-amd64
@@ -121,7 +130,7 @@ help:
 	@echo "  release        - Build release binaries with checksums"
 	@echo "  install        - Install binary, systemd unit, config"
 	@echo "  uninstall      - Remove installed files"
-	@echo "  deb            - Build Debian package (ARM64)"
+	@echo "  deb            - Build Debian packages (ARM64 + AMD64)"
 	@echo "  rpm            - Build RPM package (AMD64)"
 	@echo "  dev            - Run in development mode"
 	@echo "  test           - Run tests"

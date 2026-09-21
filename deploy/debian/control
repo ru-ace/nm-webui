@@ -1,0 +1,10 @@
+Package: nm-webui
+Version: VERSION
+Architecture: ARCH
+Maintainer: nm-webui maintainers <ru-ace@users.noreply.github.com>
+Section: net
+Priority: optional
+Description: Web UI for NetworkManager
+ Web-based UI for managing NetworkManager connections: WiFi, ethernet,
+ hotspots and more. The Svelte frontend is embedded in a single static
+ Go binary; no web server dependencies required.
