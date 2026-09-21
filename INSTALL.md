@@ -1,6 +1,7 @@
 # Installation Guide
 
 This guide covers installing nm-webui on Linux systems with NetworkManager.
+Features and usage: see [README.md](README.md).
 
 ## Prerequisites
 
@@ -85,10 +86,12 @@ This installs:
 
 ## Method 3: Debian Package
 
+Download the `.deb` asset matching the current release for your architecture
+(name looks like `nm-webui_<version>_arm64.deb` or `nm-webui_<version>_amd64.deb`)
+from the [Releases](https://github.com/ru-ace/nm-webui/releases) page:
+
 ```bash
-# Download .deb from releases
-wget https://github.com/ru-ace/nm-webui/releases/latest/download/nm-webui_1.0.0_arm64.deb
-sudo dpkg -i nm-webui_1.0.0_arm64.deb
+sudo dpkg -i nm-webui_<version>_arm64.deb
 sudo apt-get install -f  # Fix dependencies if needed
 ```
 
@@ -124,6 +127,35 @@ tls-key: ""                       # Custom key path
 log-level: "info"                 # debug, info, warn, error
 connect-timeout: 45               # WiFi connect timeout (seconds)
 ```
+
+### Environment Variables
+
+Every option can also be set with `NM_WEBUI_*` environment variables
+(precedence: CLI flags > environment > config file):
+
+| Variable | Description |
+|----------|-------------|
+| `NM_WEBUI_LISTEN` | Listen address, e.g. `0.0.0.0:8080` |
+| `NM_WEBUI_AUTH_PASS` | Admin password (empty = no auth) |
+| `NM_WEBUI_INTERFACE_FILTER` | Interface filter regex |
+| `NM_WEBUI_LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
+| `NM_WEBUI_CONNECT_TIMEOUT` | WiFi connect timeout (seconds) |
+| `NM_WEBUI_TLS` | `true`/`false` — enable HTTPS |
+| `NM_WEBUI_TLS_CERT` / `NM_WEBUI_TLS_KEY` | Custom certificate/key paths |
+| `NM_WEBUI_CONFIG` | Path to the config file (e.g. `/etc/nm-webui/config.yaml`) |
+
+Portal-specific options (`NM_WEBUI_PORTAL_URLS`, `NM_WEBUI_PORTAL_ALLOW_JS`) are
+documented in the Captive Portal section of [README.md](README.md).
+
+### Command Line Flags
+
+Flags override the config file and environment variables:
+
+```bash
+nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+```
+
+Run `nm-webui --help` to list every option.
 
 ### Generate Self-Signed Cert (if TLS enabled)
 

@@ -1,6 +1,7 @@
 # Руководство по установке
 
 Это руководство описывает установку nm-webui на Linux-системы с NetworkManager.
+Возможности и использование: см. [README.ru.md](README.ru.md).
 
 ## Требования
 
@@ -85,10 +86,12 @@ sudo make install
 
 ## Способ 3: Debian-пакет
 
+Скачайте `.deb`-артефакт под вашу архитектуру и текущую версию релиза
+(имя вида `nm-webui_<версия>_arm64.deb` или `nm-webui_<версия>_amd64.deb`)
+со страницы [Releases](https://github.com/ru-ace/nm-webui/releases):
+
 ```bash
-# Скачайте .deb с releases
-wget https://github.com/ru-ace/nm-webui/releases/latest/download/nm-webui_1.0.0_arm64.deb
-sudo dpkg -i nm-webui_1.0.0_arm64.deb
+sudo dpkg -i nm-webui_<версия>_arm64.deb
 sudo apt-get install -f  # Исправить зависимости при необходимости
 ```
 
@@ -124,6 +127,35 @@ tls-key: ""                       # Путь к ключу
 log-level: "info"                 # debug, info, warn, error
 connect-timeout: 45               # Таймаут подключения WiFi (сек)
 ```
+
+### Переменные окружения
+
+Каждая опция также задаётся переменными окружения `NM_WEBUI_*`
+(приоритет: CLI-флаги > окружение > файл конфига):
+
+| Переменная | Описание |
+|------------|----------|
+| `NM_WEBUI_LISTEN` | Адрес прослушивания, напр. `0.0.0.0:8080` |
+| `NM_WEBUI_AUTH_PASS` | Пароль администратора (пусто = без авторизации) |
+| `NM_WEBUI_INTERFACE_FILTER` | Регулярное выражение фильтра интерфейсов |
+| `NM_WEBUI_LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
+| `NM_WEBUI_CONNECT_TIMEOUT` | Таймаут подключения WiFi (сек) |
+| `NM_WEBUI_TLS` | `true`/`false` — включить HTTPS |
+| `NM_WEBUI_TLS_CERT` / `NM_WEBUI_TLS_KEY` | Пути к своему сертификату/ключу |
+| `NM_WEBUI_CONFIG` | Путь к файлу конфига (напр. `/etc/nm-webui/config.yaml`) |
+
+Опции портала (`NM_WEBUI_PORTAL_URLS`, `NM_WEBUI_PORTAL_ALLOW_JS`) описаны в
+разделе Captive Portal файла [README.ru.md](README.ru.md).
+
+### CLI-флаги
+
+Флаги переопределяют файл конфига и переменные окружения:
+
+```bash
+nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+```
+
+Полный список опций: `nm-webui --help`.
 
 ### Генерация самоподписанного сертификата (если TLS включён)
 
