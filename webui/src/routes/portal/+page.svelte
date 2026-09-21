@@ -200,15 +200,7 @@
   });
 </script>
 
-<div class="flex flex-col gap-3">
-  <div class="flex items-center gap-2">
-    <button class="btn btn-ghost btn-sm gap-1" onclick={() => navigate('/')} aria-label="Dashboard">
-      <ArrowLeft class="w-4 h-4" />
-      Dashboard
-    </button>
-    <h1 class="text-lg font-semibold flex-1 truncate">Captive portal</h1>
-  </div>
-
+<div class="flex flex-col gap-2 flex-1 min-h-0">
   {#if onlineNotice}
     <div class="alert alert-success shadow-sm">
       <CheckCircle class="w-6 h-6 shrink-0" />
@@ -220,8 +212,8 @@
     </div>
   {/if}
 
-  <div class="card bg-base-100 shadow-sm border border-base-300">
-    <div class="card-body p-3 gap-2">
+  <div class="card bg-base-100 shadow-sm border border-base-300 flex-1 min-h-0 flex flex-col">
+    <div class="card-body p-3 gap-2 flex-1 min-h-0 flex flex-col">
       <!-- address bar -->
       <div class="flex gap-2">
         <div class="flex-1 relative">
@@ -287,8 +279,8 @@
 
       <!-- content -->
       {#if !currentUrl && !busy}
-        <div class="hero bg-base-200/50 rounded-lg border border-base-300 py-12">
-          <div class="hero-content text-center">
+        <div class="flex-1 flex items-center justify-center bg-base-200/50 rounded-lg border border-base-300 min-h-[40vh]">
+          <div class="text-center px-4">
             <div class="flex flex-col items-center gap-3">
               <Globe class="w-10 h-10 text-base-content/40" />
               <p class="text-sm text-base-content/70 max-w-md">
@@ -314,8 +306,8 @@
           sandbox={SANDBOX}
           referrerpolicy="no-referrer"
           onload={onFrameLoad}
-          class="w-full min-h-[55vh] max-h-[70vh] rounded-lg border border-base-300 bg-white"
-          title="Captive portal"
+          class="w-full flex-1 min-h-0 rounded-lg border border-base-300 bg-white"
+          title="Portal"
         ></iframe>
       {/if}
     </div>
