@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
   import { features } from '$lib/stores/app';
-  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, RotateCcw, X } from 'lucide-svelte';
+  import { AlertTriangle, Eye, EyeOff, Loader2, Lock, Power, RotateCcw, X } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
 
   type PowerAction = 'reboot' | 'poweroff';

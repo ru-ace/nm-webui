@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Server, Cable, Wifi, Database, Cpu, Loader2, RefreshCw, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from 'lucide-svelte';
+  import { Server, Cable, Wifi, Database, Cpu, Loader2, RefreshCw, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from '@lucide/svelte';
   import { devices, loading, loadDevices, activateConnection, deactivateConnection } from '$lib/stores/app';
   import DeviceCard from './DeviceCard.svelte';
 

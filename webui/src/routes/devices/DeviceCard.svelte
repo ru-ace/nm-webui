@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Loader2, Copy, Wifi, Cable, Database, Server, Smartphone } from 'lucide-svelte';
+  import { ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Loader2, Copy, Wifi, Cable, Database, Server, Smartphone } from '@lucide/svelte';
   import { disconnectDevice, connectDevice } from '$lib/stores/app';
   import { navigate } from '$lib/stores/router';
 

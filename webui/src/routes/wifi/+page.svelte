@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Wifi, Loader2, Lock, Unlock, Shield, SignalHigh, SignalLow, RefreshCw } from 'lucide-svelte';
+  import { Wifi, Loader2, Lock, Unlock, Shield, SignalHigh, SignalLow, RefreshCw } from '@lucide/svelte';
   import {
     devices,
     wifiNetworks,

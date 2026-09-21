@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Wifi, Cable, Database, Loader2, Smartphone } from 'lucide-svelte';
+  import { X, Wifi, Cable, Database, Loader2, Smartphone } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { createConnection, updateConnection } from '$lib/stores/app';
 

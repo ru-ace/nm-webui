@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings, Smartphone } from 'lucide-svelte';
+  import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings, Smartphone } from '@lucide/svelte';
   import { connections, loading, loadConnections, forgetConnection, toggleAutoconnect, activateConnection, deactivateConnection } from '$lib/stores/app';
   import ConnectionModal from './ConnectionModal.svelte';
   import ConnectionRow from './ConnectionRow.svelte';

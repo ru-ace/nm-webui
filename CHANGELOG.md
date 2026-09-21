@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-21
+
 ### Added
 
 - Reboot / power off the host from the web UI (opt-in, separate password,
@@ -14,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Frontend toolchain refreshed: `lucide-svelte` → `@lucide/svelte` (package
+  renamed upstream, old one deprecated), Vite 5 → 6 and
+  `@sveltejs/vite-plugin-svelte` 4 → 5; `npm audit` is clean (0 vulnerabilities)
 - Documentation updated (README, INSTALL, Russian mirrors)
 
 ### Fixed
@@ -59,5 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - External IP provider switched to `api64.ipify.org`
 - Documentation overhaul
 
-[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ru-ace/nm-webui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ru-ace/nm-webui/releases/tag/v1.0.0

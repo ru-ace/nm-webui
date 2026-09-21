@@ -6,7 +6,7 @@
 
 Lightweight web interface for NetworkManager. Designed for travel routers and headless Linux devices. Single static binary, no external dependencies.
 
-**[Русская версия](README.ru.md) · [Installation Guide](INSTALL.md)**
+**[Русская версия](README.ru.md) · [Installation Guide](INSTALL.md) · [Screenshots](docs/SCREENSHOTS.md)**
 
 ---
 

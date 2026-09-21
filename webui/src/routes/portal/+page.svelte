@@ -12,7 +12,7 @@
     Home,
     Loader2,
     RefreshCw
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
 
   const PROXY = '/api/v1/captive-portal/proxy';
   // Sandboxed without allow-same-origin: portal scripts run in an opaque

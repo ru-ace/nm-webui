@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { X, Eye, EyeOff, Lock } from 'lucide-svelte';
+  import { X, Eye, EyeOff, Lock } from '@lucide/svelte';
   import { passwordModal } from '$lib/stores/modals';
   import { fly } from 'svelte/transition';
 

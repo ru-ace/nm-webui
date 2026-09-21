@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert, Monitor } from 'lucide-svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert, Monitor } from '@lucide/svelte';
   import {
     systemStatus,
     devices,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X } from 'lucide-svelte';
+  import { X } from '@lucide/svelte';
   import { toast } from '../stores/app';
   import { fly } from 'svelte/transition';
 </script>

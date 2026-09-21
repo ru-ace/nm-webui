@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentPath, navigate } from '$lib/stores/router';
-  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe, Power } from 'lucide-svelte';
+  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe, Power } from '@lucide/svelte';
   import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
   import { features } from '$lib/stores/app';
 

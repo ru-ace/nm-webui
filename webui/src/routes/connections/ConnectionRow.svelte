@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, Copy, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings, Smartphone } from 'lucide-svelte';
+  import { ChevronDown, ChevronUp, Copy, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings, Smartphone } from '@lucide/svelte';
   import { activateConnection, deactivateConnection, toggleAutoconnect, forgetConnection } from '$lib/stores/app';
 
   export let conn: any;
