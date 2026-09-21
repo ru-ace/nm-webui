@@ -1,0 +1,15 @@
+{
+  "name": "nm-webui-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regenerates docs/screenshots with mock NetworkManager data (no NetworkManager required)",
+  "scripts": {
+    "capture": "node run.mjs",
+    "check": "node check-links.mjs",
+    "server": "node mock-server.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

@@ -1,6 +1,7 @@
 bin/
 dist/
 webui/node_modules/
+scripts/screenshots/node_modules/
 internal/webui/dist/*
 !internal/webui/dist/index.html
 *.test

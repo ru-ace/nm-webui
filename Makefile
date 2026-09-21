@@ -1,4 +1,4 @@
-.PHONY: all build webui webui-dev clean cross-arm64 cross-amd64 install uninstall deb rpm test lint vet
+.PHONY: all build webui webui-dev clean cross-arm64 cross-amd64 install uninstall deb rpm test lint vet screenshots
 
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -23,6 +23,14 @@ webui:
 
 webui-dev:
 	cd $(WEBUI_DIR) && npm run dev
+
+# Regenerate documentation screenshots (fictitious "travel router" data via a
+# mock backend — no NetworkManager needed). Writes docs/screenshots/*.png and
+# validates links in docs/SCREENSHOTS.md. See scripts/screenshots/README.md.
+screenshots:
+	cd $(WEBUI_DIR) && npm ci && npm run build
+	cd $(CURDIR)/scripts/screenshots && npm install --no-audit --no-fund --silent
+	node scripts/screenshots/run.mjs
 
 # Build backend with embedded frontend
 build: webui
@@ -128,6 +136,7 @@ help:
 	@echo "  build          - Build binary with embedded frontend"
 	@echo "  webui          - Build frontend only"
 	@echo "  webui-dev      - Start frontend dev server"
+	@echo "  screenshots    - Regenerate docs/screenshots via mock backend"
 	@echo "  cross-arm64    - Cross-compile for Linux ARM64"
 	@echo "  cross-amd64    - Cross-compile for Linux AMD64"
 	@echo "  release        - Build release binaries with checksums"
