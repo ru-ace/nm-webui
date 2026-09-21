@@ -234,6 +234,17 @@ func RewritePortalHTML(doc []byte, baseURL string, allowJS bool) ([]byte, error)
 		// The sandboxed iframe runs under an opaque origin that the parent
 		// cannot inspect, so keep the SPA address bar and history in sync via
 		// postMessage. The snippet is safe: it only reports its own URL/title.
+		// The final-url marker lets the SPA show the actual destination after
+		// upstream redirects (the iframe never sees them; the Go client does).
+		if head := findElement(root, "head"); head != nil {
+			head.AppendChild(&html.Node{
+				Type: html.ElementNode, Data: "meta",
+				Attr: []html.Attribute{
+					{Key: "name", Val: "nm-final-url"},
+					{Key: "content", Val: base.String()},
+				},
+			})
+		}
 		if body := findElement(root, "body"); body != nil {
 			body.AppendChild(&html.Node{
 				Type: html.ElementNode, Data: "script",
@@ -264,13 +275,19 @@ func findElement(n *html.Node, tag string) *html.Node {
 	return nil
 }
 
-// telemetryScript reports the portal document's location and title back to
-// the SPA after loads and history-triggering navigation, so the mini-browser
-// chrome (address bar, back/forward) stays accurate while scripts run inside
-// the sandboxed iframe.
+// telemetryScript reports the portal document's location, the final upstream
+// URL (from the injected nm-final-url marker) and its title back to the SPA
+// after loads and history-triggering navigation, so the mini-browser chrome
+// (address bar, back/forward) stays accurate while scripts run inside the
+// sandboxed iframe.
 const telemetryScript = `(function(){
   function report(){
-    try { parent.postMessage({__nmPortal: true, href: location.href, title: document.title}, "*"); } catch(e){}
+    try {
+      var fin = null;
+      var m = document.querySelector('meta[name="nm-final-url"]');
+      if (m) fin = m.getAttribute("content");
+      parent.postMessage({__nmPortal: true, href: location.href, finalUrl: fin || null, title: document.title}, "*");
+    } catch(e){}
   }
   function hook(proto, name){
     var orig = proto && proto[name];

@@ -105,7 +105,13 @@
     const d = e.data;
     if (!d || d.__nmPortal !== true) return;
     if (e.source !== frameEl?.contentWindow) return;
-    const target = targetOfProxyHref(String(d.href || ''));
+    const hrefTarget = targetOfProxyHref(String(d.href || ''));
+    // The proxy embeds <meta name="nm-final-url"> when it followed upstream
+    // redirects, so the mini-browser can show the actual destination (the
+    // iframe URL itself never changes on a server-side redirect).
+    const finalTarget =
+      typeof d.finalUrl === 'string' && isHttp(d.finalUrl) ? d.finalUrl.trim() : '';
+    const target = finalTarget || hrefTarget;
     if (!target) return;
     if (String(d.title)) portalTitle = String(d.title).trim();
     if (target !== historyStack[historyIndex]) {

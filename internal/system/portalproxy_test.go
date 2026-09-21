@@ -109,6 +109,13 @@ func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	if !strings.Contains(s, "__nmPortal") || !strings.Contains(s, "postMessage") {
 		t.Errorf("telemetry script not injected:\n%s", s)
 	}
+	if !strings.Contains(s, `name="nm-final-url"`) ||
+		!strings.Contains(s, `content="`+portalOrigin+`/portal/index.html"`) {
+		t.Errorf("final-url meta marker not injected:\n%s", s)
+	}
+	if !strings.Contains(s, "finalUrl") {
+		t.Errorf("telemetry does not report finalUrl:\n%s", s)
+	}
 	wantLink := `href="` + ProxyBase + `?url=http%3A%2F%2F192.168.1.1%2Flogin%3Fx%3D1"`
 	if !strings.Contains(s, wantLink) {
 		t.Errorf("absolute link not rewritten (js):\n%s", s)
@@ -142,6 +149,43 @@ func TestFetchPortalRewritesHTMLAndHeaders(t *testing.T) {
 	want := ProxyBase + "?url=" + url.QueryEscape("http://"+hostOf(srv)+"/next")
 	if !strings.Contains(string(body), want) {
 		t.Fatalf("link not rewritten (want %s):\n%s", want, body)
+	}
+}
+
+// TestFetchPortalFollowsRedirects proves upstream HTTP redirects are absorbed
+// by the Go client on the host: the proxy returns the final document (200),
+// the final URL becomes the rewrite base, and the JS-mode meta marker exposes
+// the destination to the telemetry in the sandboxed iframe.
+func TestFetchPortalFollowsRedirects(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/landing", http.StatusFound)
+	})
+	mux.HandleFunc("/landing", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`<html><a href="/next">next</a></html>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	d := newTestDetectorJS()
+	body, _, finalURL, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/", nil)
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 after redirect", status)
+	}
+	if finalURL != srv.URL+"/landing" {
+		t.Fatalf("final url = %q, want %q", finalURL, srv.URL+"/landing")
+	}
+	s := string(body)
+	want := ProxyBase + "?url=" + url.QueryEscape("http://"+hostOf(srv)+"/next")
+	if !strings.Contains(s, want) {
+		t.Fatalf("link not rewritten against final base:\n%s", s)
+	}
+	if !strings.Contains(s, `content="`+srv.URL+`/landing"`) {
+		t.Fatalf("final-url meta marker missing:\n%s", s)
 	}
 }
 
