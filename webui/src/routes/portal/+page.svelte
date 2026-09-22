@@ -1,18 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { captivePortal, loading, recheckCaptivePortal } from '$lib/stores/app';
   import { NAVIGATE_EVENT, navigate } from '$lib/stores/router';
+  import { headerAction } from '$lib/stores/header';
   import {
-    ArrowLeft,
-    ArrowRight,
+    AlertTriangle,
     CheckCircle,
     ExternalLink,
     Globe,
-    Home,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    X
   } from '@lucide/svelte';
+  import { fly } from 'svelte/transition';
 
   const PROXY = '/api/v1/captive-portal/proxy';
   // Sandboxed without allow-same-origin: portal scripts run in an opaque
@@ -27,9 +28,11 @@
   let portalTitle = '';
   let busy = false;
   let errorMessage = '';
+  // "Open in new tab" bypasses the iframe sandbox (opaque origin), so it must
+  // be explicitly re-confirmed every time.
+  let confirmOpenTab = false;
+  let openTabConfirmed = false;
   let onlineNotice = false;
-  let historyStack: string[] = [];
-  let historyIndex = -1;
 
   function isHttp(target: string): boolean {
     return /^https?:\/\//i.test(target.trim());
@@ -54,20 +57,6 @@
     } catch {
       return '';
     }
-  }
-
-  function canGoBack() {
-    return historyIndex > 0;
-  }
-
-  function canGoForward() {
-    return historyIndex < historyStack.length - 1;
-  }
-
-  function pushHistory(target: string) {
-    historyStack = historyStack.slice(0, historyIndex + 1);
-    historyStack.push(target);
-    historyIndex = historyStack.length - 1;
   }
 
   // Keep the browser bar pointing at /portal?url=<current> so a refresh or a
@@ -98,9 +87,9 @@
   }
 
   // Telemetry from the sandboxed portal frame (injected by the proxy): keep
-  // the address bar, page title and the local history stack in sync with
-  // navigation that happens inside the iframe (link clicks, form submits,
-  // redirects, meta refresh, history API).
+  // the address bar and page title in sync with navigation that happens
+  // inside the iframe (link clicks, form submits, redirects, meta refresh,
+  // history API).
   function onPortalMessage(e: MessageEvent) {
     const d = e.data;
     if (!d || d.__nmPortal !== true) return;
@@ -114,9 +103,7 @@
     const target = finalTarget || hrefTarget;
     if (!target) return;
     if (String(d.title)) portalTitle = String(d.title).trim();
-    if (target !== historyStack[historyIndex]) {
-      pushHistory(target);
-    }
+    urlInput = target;
     addressValue = target;
     currentUrl = target;
     reflectLocation(target);
@@ -132,24 +119,11 @@
       errorMessage = 'Only http:// and https:// URLs are supported.';
       return;
     }
-    pushHistory(t);
     loadInFrame(t);
   }
 
   function submitGo() {
     go(urlInput);
-  }
-
-  function back() {
-    if (!canGoBack()) return;
-    historyIndex--;
-    loadInFrame(historyStack[historyIndex]);
-  }
-
-  function forward() {
-    if (!canGoForward()) return;
-    historyIndex++;
-    loadInFrame(historyStack[historyIndex]);
   }
 
   async function recheck() {
@@ -161,6 +135,25 @@
     } else if (st?.state === 'online') {
       onlineNotice = true;
     }
+  }
+
+  function requestOpenTab() {
+    if (!currentUrl) return;
+    openTabConfirmed = false;
+    confirmOpenTab = true;
+  }
+
+  function cancelOpenTab() {
+    confirmOpenTab = false;
+    openTabConfirmed = false;
+  }
+
+  function doOpenTab() {
+    if (!openTabConfirmed || !currentUrl) return;
+    // noopener+noreferrer keep the opened proxy page detached from this window.
+    window.open(proxyUrl(currentUrl), '_blank', 'noopener,noreferrer');
+    confirmOpenTab = false;
+    openTabConfirmed = false;
   }
 
   function initialTarget(): string {
@@ -181,6 +174,18 @@
   $: if ($captivePortal?.state === 'portal' && !currentUrl && !busy && $captivePortal.portal_url) {
     go($captivePortal.portal_url);
   }
+
+  // Mobile header action: icon-only Recheck button (hidden on desktop, where
+  // the toolbar button is removed entirely).
+  $: headerAction.set({
+    label: 'Recheck portal',
+    icon: RefreshCw,
+    onClick: () => { void recheck(); },
+    disabled: $loading['portal'],
+    loading: $loading['portal']
+  });
+
+  onDestroy(() => headerAction.set(null));
 
   onMount(() => {
     const initial = initialTarget();
@@ -237,34 +242,15 @@
 
       <!-- toolbar -->
       <div class="flex items-center gap-1 flex-wrap">
-        <div class="flex gap-1">
-          <button class="btn btn-ghost btn-sm" onclick={back} disabled={!canGoBack()} title="Back">
-            <ArrowLeft class="w-4 h-4" />
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick={forward} disabled={!canGoForward()} title="Forward">
-            <ArrowRight class="w-4 h-4" />
-          </button>
-        </div>
-        <button class="btn btn-ghost btn-sm gap-1" onclick={recheck} disabled={$loading['portal']}>
-          {#if $loading['portal']}
-            <Loader2 class="w-4 h-4 animate-spin" />
-          {:else}
-            <RefreshCw class="w-4 h-4" />
-          {/if}
-          Recheck
-        </button>
-        <a
-          class="btn btn-ghost btn-sm gap-1 {currentUrl ? '' : 'btn-disabled'}"
-          href={currentUrl ? proxyUrl(currentUrl) : '#'}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm gap-1"
+          onclick={requestOpenTab}
+          disabled={!currentUrl}
           title="Open through the proxy in a new tab"
         >
           <ExternalLink class="w-4 h-4" />
-          Open in new tab
-        </a>
-        <button class="btn btn-ghost btn-sm gap-1" onclick={() => navigate('/')} title="Home">
-          <Home class="w-4 h-4" />
+          <span class="hidden lg:inline">Open in new tab</span>
         </button>
         <span class="flex-1 truncate text-xs font-mono text-base-content/50" title={addressValue}>
           {portalTitle || addressValue}
@@ -313,3 +299,47 @@
     </div>
   </div>
 </div>
+
+{#if confirmOpenTab}
+  <div class="modal modal-open" role="dialog" aria-modal="true">
+    <div class="modal-box relative" in:fly={{ y: 20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+      <button
+        type="button"
+        class="btn btn-ghost btn-circle absolute right-2 top-2"
+        onclick={cancelOpenTab}
+        aria-label="Close"
+        title="Close"
+      >
+        <X class="w-5 h-5" />
+      </button>
+      <div class="flex items-start gap-3">
+        <AlertTriangle class="w-6 h-6 shrink-0 text-warning" />
+        <div>
+          <h3 class="font-bold text-lg">Open in a new tab?</h3>
+          <p class="text-sm text-base-content/70 mt-1">
+            The page will open <span class="font-semibold">outside the sandbox</span> in a new tab,
+            so its scripts run with the same access to this admin interface as this window.
+            Only open pages you trust.
+          </p>
+        </div>
+      </div>
+      <label class="flex items-start gap-2 mt-4 cursor-pointer">
+        <input type="checkbox" bind:checked={openTabConfirmed} class="checkbox checkbox-sm mt-0.5" />
+        <span class="text-sm">I understand — only open pages I trust this way.</span>
+      </label>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost" onclick={cancelOpenTab}>Cancel</button>
+        <button
+          type="button"
+          class="btn btn-warning gap-2"
+          onclick={doOpenTab}
+          disabled={!openTabConfirmed}
+        >
+          <ExternalLink class="w-4 h-4" />
+          Open
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" onclick={cancelOpenTab} aria-hidden="true"></button>
+  </div>
+{/if}

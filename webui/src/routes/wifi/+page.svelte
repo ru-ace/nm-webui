@@ -4,6 +4,7 @@
   import {
     devices,
     wifiNetworks,
+    wifiStatusMap,
     loading,
     triggerScan,
     loadWifiNetworks,
@@ -22,11 +23,20 @@
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
   $: selectedDeviceObj = wifiDevices.find(d => d.interface === selectedIface);
   $: loadingMap = $loading;
+  $: wifiStatus = $wifiStatusMap[selectedIface];
+
+  // True when the row's network is the one the selected interface is connected to.
+  function isCurrentNetwork(network: { ssid: string }) {
+    return !!wifiStatus?.connected && !!wifiStatus?.ssid && wifiStatus.ssid === network.ssid;
+  }
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     selectedIface = params.get('iface') || '';
-    if (selectedIface) loadWifiNetworks(selectedIface);
+    if (selectedIface) {
+      loadWifiNetworks(selectedIface);
+      loadWifiStatus(selectedIface);
+    }
     // NetworkManager prunes access points that stop emitting beacons, so the
     // network list collapses to the current network after a while. Re-scan
     // quietly every 60 seconds to keep the list populated.
@@ -44,6 +54,7 @@
     selectedIface = wifiDevices[0].interface;
     navigate(`/wifi?iface=${selectedIface}`);
     loadWifiNetworks(selectedIface);
+    loadWifiStatus(selectedIface);
   }
 
   async function handleScan() {
@@ -77,6 +88,8 @@
     } else {
       await connectWifi(selectedIface, network.ssid);
     }
+    // Keep the Join/Connected state accurate after connecting.
+    loadWifiStatus(selectedIface);
   }
 
   function getSecurityComponent(security: string) {
@@ -124,6 +137,7 @@
         onchange={() => {
           navigate(`/wifi?iface=${selectedIface}`);
           loadWifiNetworks(selectedIface);
+          loadWifiStatus(selectedIface);
         }}
         class="select select-bordered w-full sm:w-48"
       >
@@ -178,10 +192,12 @@
           <table class="table table-fixed w-full">
             <thead>
               <tr class="bg-base-200">
-                <th class="w-[12%] px-2 py-3"><span class="sr-only">Signal</span></th>
-                <th class="w-[45%] px-2 py-3">Network</th>
-                <th class="w-[22%] px-2 py-3 text-center">Level</th>
-                <th class="w-[21%] px-2 py-3 text-right">Action</th>
+                <th class="w-[12%] lg:w-[9%] px-2 py-3"><span class="sr-only">Signal</span></th>
+                <th class="w-[45%] lg:w-[30%] px-2 py-3">Network</th>
+                <th class="hidden lg:table-cell lg:w-[16%] px-2 py-3">Security</th>
+                <th class="hidden lg:table-cell lg:w-[11%] px-2 py-3 text-center">Band</th>
+                <th class="w-[22%] lg:w-[15%] px-2 py-3 text-center">Level</th>
+                <th class="w-[21%] lg:w-[19%] px-2 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -192,7 +208,7 @@
                       <Wifi class="h-6 w-6 text-base-content/60" />
                       {#if network.security !== 'open'}
                         <span
-                          class="absolute bottom-0 left-0 rounded bg-base-100 leading-none"
+                          class="absolute bottom-0 left-0 rounded bg-base-100 leading-none lg:hidden"
                           title={getSecurityLabel(network.security)}
                           aria-label={getSecurityLabel(network.security)}
                         >
@@ -200,7 +216,7 @@
                         </span>
                       {/if}
                       <span
-                        class="absolute -bottom-[3px] right-0 flex h-4 w-3 items-center justify-center rounded bg-base-100 font-mono text-sm font-semibold leading-none text-base-content/70"
+                        class="absolute -bottom-[3px] right-0 flex h-4 w-3 items-center justify-center rounded bg-base-100 font-mono text-sm font-semibold leading-none text-base-content/70 lg:hidden"
                         title={network.band ? `${network.band} GHz band` : 'Unknown band'}
                       >
                         {getBandLabel(network.band)}
@@ -218,6 +234,22 @@
                       {/if}
                     </div>
                   </td>
+                  <td class="hidden lg:table-cell px-2 py-3 whitespace-nowrap">
+                    <div class="flex items-center gap-1.5">
+                      <svelte:component
+                        this={getSecurityComponent(network.security)}
+                        class="h-4 w-4 {network.security === 'open' ? 'text-base-content/60' : network.security === 'wpa3' ? 'text-success' : 'text-warning'}"
+                      />
+                      <span class="text-sm">
+                        {network.security === 'open' ? 'Open' : network.security === 'enterprise' ? 'Enterprise' : network.security.toUpperCase()}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="hidden lg:table-cell px-2 py-3 text-center whitespace-nowrap">
+                    <span class="text-sm text-base-content/70">
+                      {network.band ? `${getBandLabel(network.band)} GHz` : '—'}
+                    </span>
+                  </td>
                   <td class="px-2 py-3 whitespace-nowrap text-center">
                     <div class="flex items-center justify-center gap-1">
                       <svelte:component this={getSignalComponent(network.signal)} class="h-5 w-5 {getSignalClass(network.signal)}" />
@@ -228,7 +260,8 @@
                     <button
                       class="btn btn-primary btn-sm"
                       onclick={() => handleConnect(network)}
-                      disabled={loadingMap[`connect-${selectedIface}`]}
+                      disabled={isCurrentNetwork(network) || !!loadingMap[`connect-${selectedIface}`]}
+                      title={isCurrentNetwork(network) ? 'Already connected to this network' : undefined}
                     >
                       Join
                     </button>

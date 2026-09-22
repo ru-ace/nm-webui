@@ -197,13 +197,16 @@ func RewritePortalHTML(doc []byte, baseURL string, allowJS bool) ([]byte, error)
 			case "form":
 				rewriteForm(n, base)
 			}
-			// Strip attributes that would execute code or override the
-			// rewritten form target: per-control form overrides always go;
-			// inline event handlers and srcdoc only in no-JS mode.
+			// Strip attributes that would execute code, override the rewritten
+			// form target, or spawn a top-level window against the admin
+			// origin: per-control form overrides always go; inline event
+			// handlers and srcdoc only in no-JS mode. target/formtarget are
+			// stripped in both modes so proxied content can never open its own
+			// top-level tab on the admin origin.
 			kept := n.Attr[:0]
 			for _, a := range n.Attr {
 				key := strings.ToLower(a.Key)
-				if key == "formaction" || key == "formmethod" {
+				if key == "formaction" || key == "formmethod" || key == "target" || key == "formtarget" {
 					continue
 				}
 				if !allowJS && (strings.HasPrefix(key, "on") || key == "srcdoc") {

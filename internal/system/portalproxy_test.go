@@ -18,7 +18,7 @@ const portalHTML = `<!DOCTYPE html>
   <meta http-equiv="refresh" content="5; url=/landing">
 </head>
 <body>
-  <a href="/login?x=1">Login</a>
+  <a href="/login?x=1" target="_blank">Login</a>
   <a href="#section">Section</a>
   <a href="javascript:void(0)">JS</a>
   <img src="logo.png" alt="logo" onerror="alert(1)">
@@ -27,10 +27,10 @@ const portalHTML = `<!DOCTYPE html>
   <iframe src="frame.html"></iframe>
   <object data="plugin.swf"></object>
   <embed src="movie.swf">
-  <form action="/submit" method="get"><input name="user" value="a"></form>
+  <form action="/submit" method="get" target="_blank"><input name="user" value="a"></form>
   <form action="https://other.example/x" method="post">
     <input name="p" value="1">
-    <button type="submit" formaction="/evil" formmethod="post">go</button>
+    <button type="submit" formaction="/evil" formmethod="post" formtarget="_blank">go</button>
   </form>
 </body>
 </html>`
@@ -45,7 +45,7 @@ func TestRewritePortalHTML(t *testing.T) {
 	s := string(out)
 
 	for _, gone := range []string{"window.bad", "<base", "javascript:void(0)", "onerror", "onclick",
-		"<iframe", "<object", "<embed", "formaction", "formmethod", "srcdoc"} {
+		"<iframe", "<object", "<embed", "formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\""} {
 		if strings.Contains(s, gone) {
 			t.Errorf("rewritten page still contains %q", gone)
 		}
@@ -96,7 +96,7 @@ func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	s := string(out)
 
 	for _, gone := range []string{"<base", "<iframe", "<object", "<embed",
-		"formaction", "formmethod", "srcdoc"} {
+		"formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\""} {
 		if strings.Contains(s, gone) {
 			t.Errorf("rewritten page (js) still contains %q", gone)
 		}

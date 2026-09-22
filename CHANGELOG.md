@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Mobile header: section title (h1) and its primary action button now live in
+  the sticky navbar; action buttons are icon-only and highlighted on phones,
+  the nav menu opens from the section title (the hamburger button was removed)
+  with its items centered, and the "nm-webui" brand text is hidden (the logo
+  remains as the home button)
+- Wi-Fi table: on desktop it now shows dedicated Security and Band columns
+  (previously hidden in small overlays on the signal icon); the Join button is
+  disabled for the network the selected interface is already connected to
+- Portal: the Recheck button moved to the mobile navbar header (icon-only) and
+  was removed from the toolbar on desktop
+- Portal: the proxy HTML rewriter now strips `target`/`formtarget` attributes
+  so proxied pages can never open their own top-level tab against the admin
+  origin; "Open in new tab" is icon-only on mobile and requires an explicit
+  risk acknowledgement (a checkbox confirmation dialog, like the power one)
+  before the page leaves the sandbox
+- Portal: the mini-browser Back/Forward buttons were removed — browsing
+  inside a portal site is covered by the site's own navigation (and, for
+  simple cases, the browser's back button), and the buttons never became
+  enabled because their disabled state depended on a history stack Svelte
+  could not make reactive; the address bar now also follows in-frame
+  navigation (link clicks, redirects, history API) reported by telemetry,
+  not just toolbar navigation
+- Portal: the toolbar Home button was removed — the navbar (desktop) and the
+  section menu (mobile) already provide one-click access to the admin
+  dashboard, and a "home" icon inside a mini-browser is ambiguous
+- Section headings shortened to match the navigation labels (Wi-Fi, Devices,
+  Profiles)
+- Desktop navbar: brand text now shows the hostname from system status instead
+  of "nm-webui"
+- Desktop layout: every section except Portal uses one unified, centered
+  content width (896px); the Devices grid now fits two columns
+
+### Fixed
+
+- Desktop layout: page containers could collapse to the width of their content
+  instead of honoring `max-w-4xl` (flex-column `mx-auto` prevented stretching),
+  so sections rendered at inconsistent widths; containers now always fill the
+  unified width
+
 ## [1.1.0] - 2026-09-21
 
 ### Added
