@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Profiles)
 - Desktop navbar: brand text now shows the hostname from system status instead
   of "nm-webui"
+- Browser tab title now shows the device hostname (e.g. "ace-wb") once system
+  status loads; "nm-webui" remains only as the pre-boot/unavailable fallback
 - Desktop layout: every section except Portal uses one unified, centered
   content width (896px); the Devices grid now fits two columns
 

@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { initEventSource, loadSystemStatus, loadDevices, loadConnections, loadCaptivePortal, loadFeatures } from '$lib/stores/app';
+  import { initEventSource, loadSystemStatus, loadDevices, loadConnections, loadCaptivePortal, loadFeatures, systemStatus } from '$lib/stores/app';
   import Layout from './routes/+layout.svelte';
   import Dashboard from './routes/+page.svelte';
   import WifiPage from './routes/wifi/+page.svelte';
@@ -33,6 +33,10 @@
       es.close();
     };
   });
+
+  // The hostname is known only at runtime (system status), so replace the
+  // static "nm-webui" tab title once the device reports it.
+  $: document.title = $systemStatus?.hostname || 'nm-webui';
 </script>
 
 <Layout>
