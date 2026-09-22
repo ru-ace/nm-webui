@@ -82,6 +82,20 @@ const states = [
     },
   },
   {
+    id: 'portal-open-tab', // risk-acknowledgement dialog for opening outside the sandbox
+    run: async (page) => {
+      const url = encodeURIComponent('http://10.0.0.1/login');
+      await page.goto(`${base}/portal?url=${url}`, { waitUntil: 'load' });
+      await page.locator('iframe[title="Portal"]').waitFor();
+      await page.frameLocator('iframe[title="Portal"]').getByText('Hotel Central').waitFor({ timeout: 5000 });
+      await page.waitForTimeout(500);
+      await page.getByTitle('Open through the proxy in a new tab').click();
+      await page.getByText('Open in a new tab?').waitFor();
+      await page.waitForTimeout(400);
+      return { fullPage: false };
+    },
+  },
+  {
     id: 'devices',
     run: async (page) => {
       await page.goto(`${base}/devices`, { waitUntil: 'load' });

@@ -17,12 +17,13 @@ data (see [`docs/screenshots/`](screenshots/) for the raw files).
 | [Wi-Fi](#wi-fi) | scanned networks | [`wifi.png`](screenshots/wifi.png) | [`wifi-mobile.png`](screenshots/wifi-mobile.png) |
 | [Wi-Fi — Join dialog](#wi-fi--join-dialog) | password modal | [`wifi-join.png`](screenshots/wifi-join.png) | [`wifi-join-mobile.png`](screenshots/wifi-join-mobile.png) |
 | [Portal](#portal) | mini-browser | [`portal.png`](screenshots/portal.png) | [`portal-mobile.png`](screenshots/portal-mobile.png) |
+| [Portal — Open in new tab](#portal--open-in-new-tab-dialog) | confirm dialog | [`portal-open-tab.png`](screenshots/portal-open-tab.png) | [`portal-open-tab-mobile.png`](screenshots/portal-open-tab-mobile.png) |
 | [Devices](#devices) | interface cards | [`devices.png`](screenshots/devices.png) | [`devices-mobile.png`](screenshots/devices-mobile.png) |
 | [Profiles](#profiles) | saved profiles | [`profiles.png`](screenshots/profiles.png) | [`profiles-mobile.png`](screenshots/profiles-mobile.png) |
 | [Profiles — New profile](#profiles--new-profile-dialog) | create dialog | [`profile-new.png`](screenshots/profile-new.png) | [`profile-new-mobile.png`](screenshots/profile-new-mobile.png) |
 | [Power](#power) | password page | [`power.png`](screenshots/power.png) | [`power-mobile.png`](screenshots/power-mobile.png) |
 | [Power — Confirmation](#power--confirmation-dialog) | confirm dialog | [`power-confirm.png`](screenshots/power-confirm.png) | [`power-confirm-mobile.png`](screenshots/power-confirm-mobile.png) |
-| [Mobile navigation](#mobile-navigation) | hamburger menu | — | [`nav-open-mobile.png`](screenshots/nav-open-mobile.png) |
+| [Mobile navigation](#mobile-navigation) | nav menu | — | [`nav-open-mobile.png`](screenshots/nav-open-mobile.png) |
 
 ---
 
@@ -48,7 +49,8 @@ Overview: connectivity badge, external IP with geo details, live device cards
 ## Wi-Fi
 
 Scanned networks on the selected interface: signal, band, security, "Saved"
-and multi-AP badges, plus the interface selector and a Scan button.
+and multi-AP badges, plus the interface selector, the selected interface's
+status card and a Scan button.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/wifi-dark.png">
@@ -84,9 +86,10 @@ Password prompt that opens when joining a secured network.
 
 ## Portal
 
-Mini-browser for captive-portal sign-in. The address bar, back/forward controls
-and the sandboxed `<iframe>` (served through the Go proxy) are shown; here it
-renders a sample hotel sign-in page.
+Mini-browser for captive-portal sign-in. The address bar (with a Go button)
+and the toolbar — here with the "Open in new tab" action — plus the sandboxed
+`<iframe>` (served through the Go proxy) are shown; here it renders a sample
+hotel sign-in page.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/portal-dark.png">
@@ -99,6 +102,27 @@ renders a sample hotel sign-in page.
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/portal-dark-mobile.png">
     <img src="screenshots/portal-mobile.png" alt="Captive portal mini-browser (mobile)" width="390">
+  </picture>
+</details>
+
+## Portal — Open in new tab dialog
+
+Opening the portal page in a separate tab runs it **outside** the iframe
+sandbox, so the mini-browser asks for an explicit acknowledgement first: the
+risk is described and the Open button stays disabled until the confirmation
+checkbox is ticked.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/portal-open-tab-dark.png">
+  <img src="screenshots/portal-open-tab.png" alt="Open in new tab confirmation" width="1280">
+</picture>
+
+<details>
+  <summary>📱 Mobile</summary>
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/portal-open-tab-dark-mobile.png">
+    <img src="screenshots/portal-open-tab-mobile.png" alt="Open in new tab confirmation (mobile)" width="390">
   </picture>
 </details>
 
@@ -198,7 +222,7 @@ Before anything is executed the user must tick the confirmation checkbox.
 
 ## Mobile navigation
 
-The hamburger menu as opened on a phone-width viewport.
+The navigation menu as opened on a phone-width viewport.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/nav-open-dark-mobile.png">

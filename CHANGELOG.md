@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1] - 2026-09-23
 
 ### Changed
 
@@ -42,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   status loads; "nm-webui" remains only as the pre-boot/unavailable fallback
 - Desktop layout: every section except Portal uses one unified, centered
   content width (896px); the Devices grid now fits two columns
+- Documentation and screenshot tooling updated: a new screenshot state for the
+  Portal "Open in new tab" confirmation dialog, the mock Wi-Fi dataset now
+  shows a multi-AP network (2 BSSIDs) and a 6 GHz band network, and the
+  README/`docs/SCREENSHOTS.md` text is aligned with the portal changes
+  (no back/forward buttons, `target`/`formtarget` stripped by the proxy, sandbox
+  confirmation dialog)
 
 ### Fixed
 
@@ -107,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - External IP provider switched to `api64.ipify.org`
 - Documentation overhaul
 
-[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/ru-ace/nm-webui/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ru-ace/nm-webui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ru-ace/nm-webui/releases/tag/v1.0.0

@@ -37,9 +37,10 @@ Afterwards review the visual diff with `git status` / `git diff --stat docs/`.
 ## Captured states
 
 `dashboard` · `wifi` · `wifi-join` (password modal) · `portal` (mini-browser with
-a fake hotel sign-in page) · `devices` · `profiles` · `profile-new` (profile
-dialog) · `power` · `power-confirm` (confirmation dialog) · `nav-open`
-(mobile hamburger menu).
+a fake hotel sign-in page) · `portal-open-tab` (risk-acknowledgement dialog for
+opening a page outside the sandbox) · `devices` · `profiles` · `profile-new`
+(profile dialog) · `power` · `power-confirm` (confirmation dialog) · `nav-open`
+(mobile nav menu).
 
 Each state → up to 4 files:
 

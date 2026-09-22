@@ -62,10 +62,15 @@ portal, the web UI detects it by probing well-known check endpoints
   (`allow-forms allow-scripts allow-popups allow-modals`, **without**
   `allow-same-origin`), so the portal code executes in an opaque origin and
   can never touch the admin SPA, its cookies or its API. A small telemetry
-  snippet keeps the mini-browser address bar and history in sync via
-  `postMessage`.
-- `<base>`, `<iframe>`, `<object>`, `<embed>` and per-control `formaction`/
-  `formmethod` attributes are always stripped by the proxy.
+  snippet keeps the mini-browser address bar in sync with in-frame navigation
+  (link clicks, redirects, history API) via `postMessage`.
+- `<base>`, `<iframe>`, `<object>`, `<embed>` and per-control attributes
+  (`formaction`/`formmethod` and `target`/`formtarget`) are always stripped by
+  the proxy, so proxied pages can never redirect the admin window or open
+  their own top-level tab on the admin origin.
+- **Open in new tab** opens the page through the proxy *outside* the sandbox,
+  so it requires an explicit acknowledgement first (a checkbox confirmation
+  dialog) before the page leaves the iframe.
 - Portal certificates are **not verified** (self-signed/expired ones are the
   norm), so HTTPS portals work out of the box.
 

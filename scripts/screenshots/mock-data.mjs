@@ -133,11 +133,24 @@ export const WIFI_STATUS = {
 };
 
 export const WIFI_NETWORKS = [
-  { ssid: 'HomeWiFi', saved: true, signal: 72, bssid: '60:45:bd:00:00:01', security: 'wpa2', band: '5', channel: 36, frequency: 5180, bssids: [{}] },
+  {
+    ssid: 'HomeWiFi',
+    saved: true,
+    signal: 72,
+    bssid: '60:45:bd:00:00:01',
+    security: 'wpa2',
+    band: '5',
+    channel: 36,
+    frequency: 5180,
+    bssids: [
+      { ssid: 'HomeWiFi', saved: true, signal: 72, bssid: '60:45:bd:00:00:01', security: 'wpa2', band: '5', channel: 36, frequency: 5180 },
+      { ssid: 'HomeWiFi', saved: true, signal: 55, bssid: '60:45:bd:00:00:02', security: 'wpa2', band: '5', channel: 100, frequency: 5500 },
+    ],
+  },
   { ssid: 'Café_Central', saved: false, signal: 64, bssid: 'a4:3c:0e:11:22:33', security: 'wpa2', band: '2', channel: 6, frequency: 2437 },
   { ssid: 'MTS-Guest', saved: false, signal: 89, bssid: 'c8:3e:a7:44:55:66', security: 'open', band: '2', channel: 1, frequency: 2412 },
+  { ssid: 'NETGEAR-6G', saved: false, signal: 52, bssid: '8c:54:1b:77:88:9a', security: 'wpa3', band: '6', channel: 37, frequency: 6135 },
   { ssid: 'NETGEAR-5G', saved: false, signal: 45, bssid: '8c:54:1b:77:88:99', security: 'wpa3', band: '5', channel: 44, frequency: 5220 },
-  { ssid: '', saved: false, signal: 58, bssid: 'd8:47:32:aa:bb:cc', security: 'wpa2', band: '2', channel: 11, frequency: 2462 },
   { ssid: 'Office-Enterprise', saved: true, signal: 30, bssid: '10:3d:1c:dd:ee:ff', security: 'enterprise', band: '2', channel: 3, frequency: 2422 },
   { ssid: 'Hotel-WiFi', saved: false, signal: 41, bssid: 'f0:9f:c2:12:34:56', security: 'wpa2', band: '5', channel: 149, frequency: 5745 },
 ];
