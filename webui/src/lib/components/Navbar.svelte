@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentPath, navigate } from '$lib/stores/router';
-  import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe, Power, Loader2 } from '@lucide/svelte';
+  import { Wifi, Monitor, Server, Settings, Sun, Moon, MonitorCog, Globe, Power, Loader2, ChevronDown } from '@lucide/svelte';
   import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
   import { connectivityStatus, features, systemStatus } from '$lib/stores/app';
   import { headerAction } from '$lib/stores/header';
@@ -61,20 +61,31 @@
       </button>
     {/each}
   </div>
-  <div class="navbar-center lg:hidden flex items-center justify-center gap-2 px-2 min-w-0">
+  <button
+    class="navbar-center lg:hidden flex items-center justify-center gap-2 px-2 min-w-0"
+    type="button"
+    aria-label="Open menu"
+    aria-expanded={menuOpen}
+    title="Menu"
+    onclick={() => (menuOpen = !menuOpen)}
+  >
     <svelte:component this={currentNav.icon} class="w-5 h-5 text-primary shrink-0" />
-    <h1 class="text-lg font-bold truncate">{currentNav.label}</h1>
+    <h1 class="text-lg font-bold truncate min-w-0">{currentNav.label}</h1>
     {#if $currentPath === '/'}
       <span
         class="h-2.5 w-2.5 rounded-full shrink-0 {statusDotClass}"
         title={`Connectivity: ${$connectivityStatus}`}
       ></span>
     {/if}
-  </div>
+    <ChevronDown
+      class="w-4 h-4 shrink-0 transition-transform {menuOpen ? 'rotate-180' : ''}"
+      aria-hidden="true"
+    />
+  </button>
   <div class="navbar-end">
     {#if $headerAction}
       <button
-        class="btn btn-ghost btn-circle lg:hidden"
+        class="btn btn-primary btn-circle shadow-sm lg:hidden"
         type="button"
         onclick={$headerAction.onClick}
         disabled={$headerAction.disabled}
@@ -103,23 +114,14 @@
         <Sun class="w-5 h-5" />
       {/if}
     </button>
-    <button
-      class="btn btn-ghost btn-square lg:hidden"
-      type="button"
-      aria-label="Menu"
-      aria-expanded={menuOpen}
-      onclick={() => menuOpen = !menuOpen}
-    >
-      <Menu class="w-6 h-6" />
-    </button>
   </div>
   {#if menuOpen}
     <div class="absolute left-0 right-0 top-full border-b border-base-300 bg-base-100 p-3 shadow-lg lg:hidden">
-      <div class="menu gap-2 p-0">
+      <div class="menu gap-2 p-0 items-center w-full">
         {#each navItems as item}
           <button
             class:active={$currentPath === item.href || (item.href !== '/' && $currentPath.startsWith(item.href))}
-            class="flex min-h-12 items-center gap-4 rounded-lg px-4 py-3 text-base font-medium"
+            class="flex w-full max-w-sm mx-auto min-h-12 items-center justify-center gap-3 rounded-lg px-4 py-3 text-base font-medium"
             type="button"
             onclick={() => go(item.href)}
           >
