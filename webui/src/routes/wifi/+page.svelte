@@ -12,6 +12,7 @@
   } from '$lib/stores/app';
   import { passwordModal, showPasswordModal } from '$lib/stores/modals';
   import { navigate } from '$lib/stores/router';
+  import { headerAction } from '$lib/stores/header';
 
   let selectedIface = '';
   let showPasswords = false;
@@ -36,6 +37,7 @@
 
   onDestroy(() => {
     if (autoScanTimer) clearInterval(autoScanTimer);
+    headerAction.set(null);
   });
 
   $: if (!selectedIface && wifiDevices.length > 0) {
@@ -53,6 +55,16 @@
       scanning = false;
     }
   }
+
+  // Mobile header action: icon-only Scan button, kept in sync with the local
+  // scanning state and the network loading flag.
+  $: headerAction.set({
+    label: 'Scan for networks',
+    icon: RefreshCw,
+    onClick: () => { void handleScan(); },
+    disabled: scanning || !!loadingMap[`wifi-${selectedIface}`],
+    loading: scanning
+  });
 
   async function handleConnect(network: any) {
     if (!selectedIface) return;
@@ -102,9 +114,9 @@
 
 <div class="space-y-6 max-w-4xl mx-auto">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div class="flex items-center gap-2">
+    <div class="hidden lg:flex items-center gap-2">
       <Wifi class="w-7 h-7 text-primary" />
-      <h1 class="text-2xl font-bold">Wi-Fi Networks</h1>
+      <h1 class="text-2xl font-bold">Wi-Fi</h1>
     </div>
     <div class="flex items-center gap-2">
       <select
@@ -120,7 +132,7 @@
         {/each}
       </select>
       <button
-        class="btn btn-primary gap-2"
+        class="btn btn-primary gap-2 hidden lg:inline-flex"
         onclick={handleScan}
         disabled={scanning || loadingMap[`wifi-${selectedIface}`]}
       >

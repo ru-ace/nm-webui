@@ -1,14 +1,24 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings, Smartphone } from '@lucide/svelte';
   import { connections, loading, loadConnections, forgetConnection, toggleAutoconnect, activateConnection, deactivateConnection } from '$lib/stores/app';
+  import { headerAction } from '$lib/stores/header';
   import ConnectionModal from './ConnectionModal.svelte';
   import ConnectionRow from './ConnectionRow.svelte';
 
   let showModal = false;
   let editingConnection: any = null;
 
-  onMount(() => loadConnections());
+  onMount(() => {
+    loadConnections();
+    // Mobile header action: icon-only "New profile" button.
+    headerAction.set({
+      label: 'New profile',
+      icon: Plus,
+      onClick: () => { editingConnection = null; showModal = true; }
+    });
+  });
+  onDestroy(() => headerAction.set(null));
 
   $: wifiConnections = $connections.filter(c => c.is_wifi);
   $: ethernetConnections = $connections.filter(c => !c.is_wifi && c.type_name === 'ethernet');
@@ -29,10 +39,10 @@
 </script>
 
 <div class="space-y-6 max-w-4xl mx-auto">
-  <div class="flex items-center justify-between">
+  <div class="hidden lg:flex items-center justify-between">
     <div class="flex items-center gap-2">
       <Settings class="w-7 h-7 text-primary" />
-      <h1 class="text-2xl font-bold">Connection Profiles</h1>
+      <h1 class="text-2xl font-bold">Profiles</h1>
     </div>
     <button class="btn btn-primary gap-2" onclick={() => { editingConnection = null; showModal = true; }}>
       <Plus class="w-4 h-4" />

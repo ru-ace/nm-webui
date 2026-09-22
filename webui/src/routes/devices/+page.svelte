@@ -1,10 +1,21 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Server, Cable, Wifi, Database, Cpu, Loader2, RefreshCw, ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Smartphone } from '@lucide/svelte';
   import { devices, loading, loadDevices, activateConnection, deactivateConnection } from '$lib/stores/app';
+  import { headerAction } from '$lib/stores/header';
   import DeviceCard from './DeviceCard.svelte';
 
   onMount(() => loadDevices());
+  onDestroy(() => headerAction.set(null));
+
+  // Mobile header action: icon-only Refresh button.
+  $: headerAction.set({
+    label: 'Refresh devices',
+    icon: RefreshCw,
+    onClick: () => { void loadDevices(); },
+    disabled: $loading.devices,
+    loading: $loading.devices
+  });
 
   $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet');
   $: wifiDevices = $devices.filter(d => d.wireless);
@@ -14,10 +25,10 @@
 </script>
 
 <div class="space-y-6 max-w-6xl mx-auto">
-  <div class="flex items-center justify-between">
+  <div class="hidden lg:flex items-center justify-between">
     <div class="flex items-center gap-2">
       <Server class="w-7 h-7 text-primary" />
-      <h1 class="text-2xl font-bold">Network Devices</h1>
+      <h1 class="text-2xl font-bold">Devices</h1>
     </div>
     <button class="btn btn-primary gap-2" onclick={loadDevices} disabled={$loading.devices}>
       {#if $loading.devices}
