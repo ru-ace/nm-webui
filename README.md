@@ -12,20 +12,20 @@ Lightweight web interface for NetworkManager. Designed for travel routers and he
 
 ## Features
 
+- **Single Binary**: Go + embedded Svelte frontend, ~10MB static binary
 - **Wi-Fi Management**: Scan, connect to open/WPA2/WPA3 networks, manage saved profiles
-- **Saved Wi-Fi Credentials**: Existing NetworkManager profiles are reused without asking for the password again
-- **Network Interfaces**: View all devices, IP addresses, DNS, gateway, link status
 - **4G/5G Modems**: Mobile broadband devices with operator, signal strength, access technology (LTE/5G NR), SIM and IMEI info; APN-based profiles (connect/disconnect)
-- **IP Configuration**: Switch between DHCP, Static IP, or Disabled per interface
-- **Real-time Updates**: Server-Sent Events for live status changes
-- **External IP**: HTTPS-based public IP lookup, synchronized with NetworkManager connectivity, with manual cache refresh
 - **Captive Portal Bypass**: Detect hotel/airport sign-in pages, and sign in straight from the Web UI through a built-in proxy (invalid TLS certificates on portal side are ignored)
+- **Real-time Updates**: Server-Sent Events for live status changes
+- **Power**: Reboot or power off the host from the web UI with a separate password and an explicit confirmation step (opt-in)
+- **Network Interfaces**: View all devices, IP addresses, DNS, gateway, link status
+- **Saved Wi-Fi Credentials**: Existing NetworkManager profiles are reused without asking for the password again
+- **IP Configuration**: Switch between DHCP, Static IP, or Disabled per interface
+- **External IP**: HTTPS-based public IP lookup, synchronized with NetworkManager connectivity, with manual cache refresh
 - **Themes**: Light, dark, or automatic device-system theme with a header toggle
 - **Authentication**: HTTP Basic Auth with rate limiting
-- **Power**: Reboot or power off the host from the web UI with a separate password and an explicit confirmation step (opt-in)
 - **HTTPS**: Auto-generated self-signed certificates or custom certs
 - **Mobile-First UI**: Optimized for phone screens (travel router use case)
-- **Single Binary**: Go + embedded Svelte frontend, ~10MB static binary
 
 ---
 
