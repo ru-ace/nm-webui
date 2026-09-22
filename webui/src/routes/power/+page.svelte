@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-3xl mx-auto">
+<div class="space-y-6 w-full max-w-4xl mx-auto">
   <div class="hidden lg:flex items-center gap-2">
     <Power class="w-7 h-7 text-warning" />
     <h1 class="text-2xl font-bold">Power</h1>

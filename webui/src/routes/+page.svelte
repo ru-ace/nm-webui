@@ -48,7 +48,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-4xl mx-auto">
+<div class="space-y-6 w-full max-w-4xl mx-auto">
   <div class="hidden lg:flex items-center justify-between">
     <div class="flex items-center gap-2">
       <Monitor class="w-7 h-7 text-primary" />

@@ -24,7 +24,7 @@
   $: loadingMap = $loading;
 </script>
 
-<div class="space-y-6 max-w-6xl mx-auto">
+<div class="space-y-6 w-full max-w-4xl mx-auto">
   <div class="hidden lg:flex items-center justify-between">
     <div class="flex items-center gap-2">
       <Server class="w-7 h-7 text-primary" />
@@ -46,7 +46,7 @@
         <Cable class="w-5 h-5 text-primary" />
         Ethernet
       </h2>
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2">
         {#each ethernetDevices as device}
           <DeviceCard {device} {loadingMap} />
         {/each}
@@ -60,7 +60,7 @@
         <Wifi class="w-5 h-5 text-primary" />
         Wi-Fi
       </h2>
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2">
         {#each wifiDevices as device}
           <DeviceCard {device} {loadingMap} />
         {/each}
@@ -74,7 +74,7 @@
         <Smartphone class="w-5 h-5 text-primary" />
         Mobile Broadband
       </h2>
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2">
         {#each modemDevices as device}
           <DeviceCard {device} {loadingMap} />
         {/each}
@@ -88,7 +88,7 @@
         <Server class="w-5 h-5 text-primary" />
         Other
       </h2>
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2">
         {#each otherDevices as device}
           <DeviceCard {device} {loadingMap} />
         {/each}

@@ -3,7 +3,7 @@
   import { currentPath, navigate } from '$lib/stores/router';
   import { Wifi, Monitor, Server, Settings, Menu, Sun, Moon, MonitorCog, Globe, Power, Loader2 } from '@lucide/svelte';
   import { activeTheme, cycleTheme, initTheme, themeMode } from '$lib/stores/theme';
-  import { connectivityStatus, features } from '$lib/stores/app';
+  import { connectivityStatus, features, systemStatus } from '$lib/stores/app';
   import { headerAction } from '$lib/stores/header';
 
   onMount(initTheme);
@@ -45,7 +45,7 @@
     <button class="navbar-brand" onclick={() => go('/')}>
       <div class="flex items-center gap-2">
         <Wifi class="w-6 h-6 text-primary" />
-        <span class="font-bold text-lg hidden lg:inline">nm-webui</span>
+        <span class="font-bold text-lg hidden lg:inline">{$systemStatus?.hostname || 'nm-webui'}</span>
       </div>
     </button>
   </div>
