@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Wifi, Cable, Database } from '@lucide/svelte';
+  import { X, Wifi, Cable, Database, Smartphone } from '@lucide/svelte';
   import { profileModal } from '$lib/stores/modals';
   import { navigate } from '$lib/stores/router';
   import type { ConnectionInfo } from '$lib/api/client';
@@ -7,6 +7,7 @@
 
   function typeIcon(conn: ConnectionInfo) {
     if (conn.is_wifi) return Wifi;
+    if (conn.is_modem) return Smartphone;
     if (conn.type_name === 'ethernet') return Cable;
     return Database;
   }
@@ -49,6 +50,8 @@
       <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
         {#if $profileModal.kind === 'ethernet'}
           <Cable class="w-5 h-5" />
+        {:else if $profileModal.kind === 'modem'}
+          <Smartphone class="w-5 h-5" />
         {:else}
           <Wifi class="w-5 h-5" />
         {/if}
@@ -59,15 +62,19 @@
         <div class="text-center py-6">
           {#if $profileModal.kind === 'ethernet'}
             <Cable class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
-            <p class="font-medium">No saved profiles for this interface</p>
-            <p class="text-sm text-base-content/60 mt-1">
-              Create a connection profile in the Connections section to connect this cable.
-            </p>
+          {:else if $profileModal.kind === 'modem'}
+            <Smartphone class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
           {:else}
             <Wifi class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
-            <p class="font-medium">No saved profiles for this interface</p>
+          {/if}
+          <p class="font-medium">No saved profiles for this interface</p>
+          {#if $profileModal.kind === 'wifi'}
             <p class="text-sm text-base-content/60 mt-1">
               Scan for networks and connect in the Wi-Fi section to create a profile.
+            </p>
+          {:else}
+            <p class="text-sm text-base-content/60 mt-1">
+              Create a connection profile in the Connections section.
             </p>
           {/if}
           <button type="button" class="btn btn-primary mt-5" onclick={handleManage}>Manage</button>

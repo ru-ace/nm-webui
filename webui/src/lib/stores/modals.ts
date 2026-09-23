@@ -15,7 +15,7 @@ export interface ProfileModalState {
   /** Route the Manage button navigates to (device-type specific). */
   manage: string;
   /** Controls the header/empty-state icon and copy. */
-  kind: 'wifi' | 'ethernet';
+  kind: 'wifi' | 'ethernet' | 'modem';
   resolve: (v: ConnectionInfo | null) => void;
 }
 
@@ -24,7 +24,7 @@ export const profileModal = writable<ProfileModalState | null>(null);
 export function showProfileModal(
   iface: string,
   profiles: ConnectionInfo[],
-  opts: { manage: string; kind?: 'wifi' | 'ethernet' } = {
+  opts: { manage: string; kind?: 'wifi' | 'ethernet' | 'modem' } = {
     manage: `/wifi?iface=${encodeURIComponent(iface)}`,
     kind: 'wifi',
   }

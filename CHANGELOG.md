@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   card now opens the same profile picker — activates immediately when a
   single profile applies, lists applicable profiles when several do, and
   falls back to the Profiles section via **Manage** when none exist
+- Dashboard Mobile Broadband cards: the **Connect** button now opens the same
+  profile picker as Wi-Fi/Ethernet (immediate activation for a single
+  applicable profile, picker for several, **Manage** shortcut to the Profiles
+  section when none exist)
 
 ### Changed
 
