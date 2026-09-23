@@ -17,6 +17,17 @@ const (
 	portalProbeWait = 5 * time.Second
 )
 
+// resolvedState applies the captive-portal re-verification to an NM-derived
+// connectivity verdict (see system.ResolveEffective). Used by endpoints that
+// serve connectivity without an explicit probe fetch of their own.
+func (s *Server) resolvedState(ctx context.Context, nmState string) string {
+	if nmState != "portal" {
+		return nmState
+	}
+	pc, err := s.portal.Probe(ctx)
+	return system.ResolveEffective(nmState, pc, err)
+}
+
 // portalPayload merges NetworkManager's connectivity verdict (authoritative)
 // with the detector's probe result, which contributes the sign-in page URL.
 func (s *Server) portalPayload(ctx context.Context) (map[string]interface{}, error) {
@@ -40,6 +51,10 @@ func (s *Server) portalPayload(ctx context.Context) (map[string]interface{}, err
 	if probeErr == nil && state == "unknown" {
 		state = pc.State
 	}
+	// NM's "portal" verdict is re-verified by our probe, which shares the portal
+	// session cookie jar: right after a successful sign-in the probe proves
+	// "online" even though NM's periodic check may still lag behind.
+	state = system.ResolveEffective(state, pc, probeErr)
 
 	portalURL := ""
 	if state == "portal" {
@@ -100,6 +115,17 @@ func (s *Server) handleCaptivePortalCheck(w http.ResponseWriter, r *http.Request
 	// Force a fresh probe so the portal URL is up to date after sign-in.
 	if _, err := s.portal.Refresh(ctx); err != nil {
 		slog.Warn("captive portal probe failed", "err", err)
+	}
+
+	// Re-resolve the effective verdict and push it to every connected client
+	// when it changes (NM is the trigger, the fresh probe is the judge).
+	if st, err := s.nm.Status(); err == nil {
+		if state, changed := s.verdict.Recheck(ctx, statusText(st.Connectivity)); changed {
+			s.hub.Publish("connectivity_changed", map[string]interface{}{
+				"connectivity": codeForState(state),
+				"status":       state,
+			})
+		}
 	}
 
 	payload, err := s.portalPayload(ctx)

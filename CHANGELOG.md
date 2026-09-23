@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Captive portal detection: NetworkManager's `portal` verdict is now
+  re-verified by the detector probe, which shares the portal session cookie
+  jar. Right after a successful sign-in the UI reports `online` as soon as the
+  probe confirms connectivity, instead of waiting for NetworkManager's periodic
+  check to catch up; if the probe still sees the portal page, reports no
+  connectivity (or the probe itself fails), NM's `portal` verdict is kept. All
+  client-facing connectivity fields (SSE `connectivity_changed`,
+  `/system/status`, `/system/captive-portal`) now carry this effective verdict
+  consistently, as a matching `connectivity` (code) / `status` (state) pair
+- Captive portal recheck: the user-initiated recheck (`POST
+  /system/captive-portal/check`) now forces both NetworkManager's own
+  connectivity check and a fresh detector probe, then pushes the resulting
+  verdict to every connected SSE client (publishes are deduplicated, so an
+  unchanged verdict is not re-pushed); "Refresh external IP" is now gated on
+  the probe-confirmed `online` state rather than NetworkManager's raw verdict,
+  so it works immediately after a successful sign-in
+
 ## [1.1.1] - 2026-09-23
 
 ### Changed

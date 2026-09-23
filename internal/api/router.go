@@ -22,6 +22,7 @@ type Server struct {
 	hub        *events.Hub
 	resolver   *system.Resolver
 	portal     *system.Detector
+	verdict    *system.VerdictLatcher
 	power      powerActions
 	powerGuard *attemptLimiter
 	timeout    time.Duration
@@ -30,12 +31,14 @@ type Server struct {
 // New creates the API server.
 func New(cfg *config.Config, client *nm.Client, hub *events.Hub) *Server {
 	jar, _ := cookiejar.New(nil)
+	portal := system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS)
 	return &Server{
 		cfg:        cfg,
 		nm:         client,
 		hub:        hub,
 		resolver:   system.NewResolver(),
-		portal:     system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS),
+		portal:     portal,
+		verdict:    system.NewVerdictLatcher(portal.Probe),
 		power:      system.NewPowerController(),
 		powerGuard: newAttemptLimiter(time.Minute, 8),
 		timeout:    time.Duration(cfg.ConnectTimeout) * time.Second,

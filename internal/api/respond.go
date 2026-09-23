@@ -48,3 +48,22 @@ func statusText(c uint32) string {
 		return "unknown"
 	}
 }
+
+// codeForState maps an advertised connectivity state back to an NM connectivity
+// code, so SSE/status payloads carry a consistent connectivity/status pair even
+// when the effective verdict diverges from NM's raw signal (see
+// system.ResolveEffective).
+func codeForState(s string) uint32 {
+	switch s {
+	case "online":
+		return nm.ConnectivityFull
+	case "limited":
+		return nm.ConnectivityLimited
+	case "portal":
+		return nm.ConnectivityPortal
+	case "none", "offline":
+		return nm.ConnectivityNone
+	default:
+		return nm.ConnectivityUnknown
+	}
+}

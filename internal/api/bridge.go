@@ -37,7 +37,7 @@ func (s *Server) startBridge(ctx context.Context) error {
 				if sig == nil {
 					continue
 				}
-				s.dispatch(sig)
+				s.dispatch(ctx, sig)
 			}
 		}
 	}()
@@ -45,15 +45,21 @@ func (s *Server) startBridge(ctx context.Context) error {
 }
 
 // dispatch routes a single D-Bus signal to the appropriate SSE event.
-func (s *Server) dispatch(sig *dbus.Signal) {
+func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 	switch sig.Name {
 	case nm.NmIfName + ".ConnectivityChanged":
 		if len(sig.Body) > 0 {
 			if v, ok := sig.Body[0].(uint32); ok {
-				s.hub.Publish("connectivity_changed", map[string]interface{}{
-					"connectivity": v,
-					"status":       statusText(v),
-				})
+				// NM is the trigger, our probe is the judge: a "portal" verdict
+				// is re-verified, so a stale NM signal right after a successful
+				// sign-in does not flip the advertised state back.
+				state, changed := s.verdict.HandleNM(ctx, statusText(v))
+				if changed {
+					s.hub.Publish("connectivity_changed", map[string]interface{}{
+						"connectivity": codeForState(state),
+						"status":       state,
+					})
+				}
 			}
 		}
 	case nm.NmIfName + ".DeviceAdded", nm.NmIfName + ".DeviceRemoved":

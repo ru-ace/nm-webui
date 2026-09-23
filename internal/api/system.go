@@ -21,9 +21,14 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 		gateway = g
 	}
 
+	// The advertised verdict re-verifies NM's "portal" with our probe, so after
+	// a successful sign-in the status flips to online as soon as the session is
+	// seen — NM's periodic check may lag behind.
+	state := s.resolvedState(r.Context(), statusText(st.Connectivity))
+
 	external := system.ExternalIP{Status: "unavailable", CheckedAt: time.Now()}
-	if statusText(st.Connectivity) == "online" {
-		// External IP is only meaningful while NetworkManager reports full connectivity.
+	if state == "online" {
+		// External IP is only meaningful while we consider connectivity online.
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		external, _ = s.resolver.Get(ctx, 2*time.Second)
 		cancel()
@@ -40,8 +45,8 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"state_name":             nm.NmStateMachineName(st.State),
 		"hostname":               st.Hostname,
 		"networkmanager_version": st.NMVersion,
-		"connectivity":           statusText(st.Connectivity),
-		"connectivity_code":      st.Connectivity,
+		"connectivity":           state,
+		"connectivity_code":      codeForState(state),
 		"networking_enabled":     st.Enable,
 		"primary_gateway":        gateway,
 		"external_ip":            externalIP,
@@ -64,7 +69,10 @@ func (s *Server) handleExternalIPRefresh(w http.ResponseWriter, r *http.Request)
 		httpError(w, err)
 		return
 	}
-	if statusText(st.Connectivity) != "online" {
+	// Gate on our effective verdict (probe-confirmed online), not just NM's raw
+	// state: right after a successful portal sign-in we may already be online
+	// while NM's periodic check is still catching up.
+	if s.resolvedState(r.Context(), statusText(st.Connectivity)) != "online" {
 		writeErr(w, http.StatusConflict, "internet connectivity is not online")
 		return
 	}
