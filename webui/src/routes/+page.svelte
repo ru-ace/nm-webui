@@ -11,13 +11,11 @@
     refreshExternalIP,
     loadWifiStatus,
     disconnectDevice,
-    activateConnection,
-    showToast,
+    connectWithPicker,
+    connectingIface,
     captivePortal,
     recheckCaptivePortal
   } from '$lib/stores/app';
-  import { showProfileModal } from '$lib/stores/modals';
-  import { api } from '$lib/api/client';
   import { navigate } from '$lib/stores/router';
   import { derived } from 'svelte/store';
 
@@ -25,7 +23,6 @@
     $devices.filter(d => d.wireless).forEach(d => loadWifiStatus(d.interface));
   });
 
-  let connectingIface: string | null = null;
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
   $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet' && d.managed && d.state >= 30);
   $: modemDevices = $devices.filter(d => !!d.modem && d.managed);
@@ -50,38 +47,6 @@
       10: { label: 'Unmanaged', class: 'badge-neutral' }
     };
     return states[state] || { label: 'Unknown', class: 'badge-ghost' };
-  }
-
-  // Dashboard card "Connect": ask NetworkManager which saved profiles are
-  // applicable to this interface and either activate directly (single
-  // profile), or let the user pick one. With no applicable profiles the modal
-  // falls back to a Manage route (Wi-Fi section for wireless cards, the
-  // Connections page for wired and modem ones, where profiles are created).
-  async function handleCardConnect(
-    device: { interface: string; type_name?: string },
-    manage: string,
-    kind: 'wifi' | 'ethernet'
-  ) {
-    const iface = device.interface;
-    connectingIface = iface;
-    try {
-      const { connections: profiles } = await api.devices.connections(iface);
-      if (profiles.length === 0) {
-        await showProfileModal(iface, profiles, { manage, kind });
-      } else if (profiles.length === 1) {
-        await activateConnection(profiles[0].uuid);
-      } else {
-        const selected = await showProfileModal(iface, profiles, { manage, kind });
-        if (selected) {
-          await activateConnection(selected.uuid);
-        }
-      }
-    } catch (e: any) {
-      console.error('Failed to load device profiles:', e);
-      showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
-    } finally {
-      connectingIface = null;
-    }
   }
 </script>
 
@@ -274,8 +239,8 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => handleCardConnect(device, '/connections', 'ethernet')}
-                    disabled={connectingIface === device.interface}
+                    onclick={() => connectWithPicker(device.interface, '/connections', 'ethernet')}
+                    disabled={$connectingIface === device.interface}
                   >
                     Connect
                   </button>
@@ -344,8 +309,8 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => handleCardConnect(device, `/wifi?iface=${device.interface}`, 'wifi')}
-                    disabled={connectingIface === device.interface}
+                    onclick={() => connectWithPicker(device.interface, `/wifi?iface=${device.interface}`, 'wifi')}
+                    disabled={$connectingIface === device.interface}
                   >
                     Connect
                   </button>
@@ -425,8 +390,8 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => handleCardConnect(device, '/connections', 'modem')}
-                    disabled={connectingIface === device.interface}
+                    onclick={() => connectWithPicker(device.interface, '/connections', 'modem')}
+                    disabled={$connectingIface === device.interface}
                   >
                     Connect
                   </button>

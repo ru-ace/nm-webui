@@ -15,7 +15,9 @@
   import { navigate } from '$lib/stores/router';
   import { headerAction } from '$lib/stores/header';
 
-  let selectedIface = '';
+  let selectedIface = typeof window !== 'undefined'
+    ? (new URLSearchParams(window.location.search).get('iface') || '')
+    : '';
   let showPasswords = false;
   let scanning = false;
   let autoScanTimer: ReturnType<typeof setInterval> | undefined;
@@ -31,8 +33,9 @@
   }
 
   onMount(() => {
-    const params = new URLSearchParams(window.location.search);
-    selectedIface = params.get('iface') || '';
+    // ?iface= is consumed at setup (see selectedIface above) before the
+    // reactive below runs, so SPA navigations with the devices store already
+    // loaded land on the requested interface instead of the first one.
     if (selectedIface) {
       loadWifiNetworks(selectedIface);
       loadWifiStatus(selectedIface);

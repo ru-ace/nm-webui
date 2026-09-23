@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   change (this UI, nmcli, KDE, autoconnect, another tab); if the
   active-connection object is already gone, the UI falls back to a full
   profile reload
+- Devices page cards: the **Connect** button now shares the dashboard's
+  profile-picker flow for Wi-Fi, Ethernet and Mobile Broadband (immediate
+  activation for a single applicable profile, picker when several apply,
+  **Manage** fallback when none exist), while exotic device types
+  (bridge, vlan, tun, …) keep the plain connect; the "Wi-Fi Networks" button
+  was replaced by a unified **Manage** button — Wi-Fi cards open the Wi-Fi
+  section for the interface, everything else the Profiles section — matching
+  the dashboard cards
 
 ### Fixed
 
@@ -77,6 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged verdict is not re-pushed); "Refresh external IP" is now gated on
   the probe-confirmed `online` state rather than NetworkManager's raw verdict,
   so it works immediately after a successful sign-in
+- Wi-Fi page could ignore the requested `?iface=` on in-app navigation and
+  open the first Wi-Fi interface instead: the default-interface fallback ran
+  before the query string was read, so a card's **Manage** shortcut (and any
+  deep link) landed on the wrong interface when the device list was already
+  loaded
 
 ## [1.1.1] - 2026-09-23
 

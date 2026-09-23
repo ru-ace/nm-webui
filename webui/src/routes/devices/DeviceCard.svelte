@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ChevronDown, ChevronUp, Settings, WifiOff, Link2, Unlink2, Loader2, Copy, Wifi, Cable, Database, Server, Smartphone } from '@lucide/svelte';
-  import { disconnectDevice, connectDevice } from '$lib/stores/app';
+  import { disconnectDevice, connectDevice, connectWithPicker, connectingIface } from '$lib/stores/app';
   import { navigate } from '$lib/stores/router';
 
   export let device: any;
@@ -19,6 +19,7 @@
   function getStateBadge(state: number) {
     const states: Record<number, { label: string; class: string }> = {
       100: { label: 'Connected', class: 'badge-success' },
+      110: { label: 'Disconnecting', class: 'badge-warning' },
       70: { label: 'Getting IP', class: 'badge-warning' },
       50: { label: 'Configuring', class: 'badge-warning' },
       30: { label: 'Disconnected', class: 'badge-ghost' },
@@ -40,6 +41,11 @@
 
   $: stateBadge = getStateBadge(device.state);
   $: deviceIconType = getDeviceIconType(device.type_name, device.wireless, !!device.modem);
+  // Kind of the profile-picker flow (null keeps the plain "up" for exotic
+  // device types that the picker modal has no icon/copy for).
+  $: pickerKind = device.wireless ? 'wifi' : device.modem ? 'modem' : device.type_name === 'ethernet' ? 'ethernet' : null;
+  // Manage route: the Wi-Fi section for wireless cards, Profiles for everything else.
+  $: manageRoute = device.wireless ? `/wifi?iface=${device.interface}` : '/connections';
 </script>
 
 <div class="card bg-base-100 shadow-sm border border-base-300 card-hover">
@@ -101,11 +107,6 @@
     {/if}
 
     <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">
-      {#if device.wireless}
-        <button type="button" class="btn btn-ghost btn-sm flex-1 gap-1" onclick={() => navigate(`/wifi?iface=${device.interface}`)}>
-          <Wifi class="w-4 h-4" /> Wi-Fi Networks
-        </button>
-      {/if}
       {#if device.state === 100}
         <button
           type="button"
@@ -116,15 +117,29 @@
           <Unlink2 class="w-4 h-4" /> Disconnect
         </button>
       {:else if device.state === 30}
-        <button
-          type="button"
-          class="btn btn-primary btn-sm flex-1 gap-1"
-          onclick={() => connectDevice(device.interface)}
-          disabled={loadingMap[`connect-${device.interface}`]}
-        >
-          <Link2 class="w-4 h-4" /> Connect
-        </button>
+        {#if pickerKind}
+          <button
+            type="button"
+            class="btn btn-primary btn-sm flex-1 gap-1"
+            onclick={() => connectWithPicker(device.interface, manageRoute, pickerKind)}
+            disabled={$connectingIface === device.interface}
+          >
+            <Link2 class="w-4 h-4" /> Connect
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="btn btn-primary btn-sm flex-1 gap-1"
+            onclick={() => connectDevice(device.interface)}
+            disabled={loadingMap[`connect-${device.interface}`]}
+          >
+            <Link2 class="w-4 h-4" /> Connect
+          </button>
+        {/if}
       {/if}
+      <button type="button" class="btn btn-ghost btn-sm gap-1" onclick={() => navigate(manageRoute)}>
+        <Settings class="w-4 h-4" /> Manage
+      </button>
       <button class="btn btn-ghost btn-sm" onclick={() => expanded = !expanded}>
         {#if expanded}
           <ChevronUp class="w-4 h-4" />

@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus, type CaptivePortalStatus, type SystemFeatures } from '$lib/api/client';
+import { showProfileModal } from './modals';
 
 export const systemStatus = writable<SystemStatus | null>(null);
 export const devices = writable<DeviceInfo[]>([]);
@@ -13,6 +14,9 @@ export const error = writable<string | null>(null);
 export const toast = writable<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
 export const selectedDevice = writable<string | null>(null);
+
+/** Interface with a "card Connect" profile-picker flow currently in flight. */
+export const connectingIface = writable<string | null>(null);
 
 const pendingScans = new Map<string, { resolve: () => void; reject: (e: Error) => void }>();
 
@@ -277,6 +281,39 @@ export async function connectDevice(iface: string) {
     showToast(`Failed to connect: ${e?.message || e}`, 'error');
   } finally {
     setLoading(`connect-${iface}`, false);
+  }
+}
+
+// Card "Connect": ask NetworkManager which saved profiles are applicable to
+// this interface and either activate directly (single profile) or let the
+// user pick one via the shared profile modal. With no applicable profiles the
+// modal falls back to a Manage route (Wi-Fi section for wireless cards, the
+// Connections page for wired and modem ones, where profiles are created).
+// `connectingIface` stays set while the flow runs so cards can disable their
+// Connect button.
+export async function connectWithPicker(
+  iface: string,
+  manage: string,
+  kind: 'wifi' | 'ethernet' | 'modem'
+) {
+  connectingIface.set(iface);
+  try {
+    const { connections: profiles } = await api.devices.connections(iface);
+    if (profiles.length === 0) {
+      await showProfileModal(iface, profiles, { manage, kind });
+    } else if (profiles.length === 1) {
+      await activateConnection(profiles[0].uuid);
+    } else {
+      const selected = await showProfileModal(iface, profiles, { manage, kind });
+      if (selected) {
+        await activateConnection(selected.uuid);
+      }
+    }
+  } catch (e: any) {
+    console.error('Failed to load device profiles:', e);
+    showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
+  } finally {
+    connectingIface.set(null);
   }
 }
 
