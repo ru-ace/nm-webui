@@ -17,9 +17,9 @@
   }
 
   function handleManage() {
-    const iface = $profileModal?.iface;
+    const target = $profileModal?.manage;
     close();
-    if (iface) navigate(`/wifi?iface=${encodeURIComponent(iface)}`);
+    if (target) navigate(target);
   }
 
   function close() {
@@ -47,17 +47,29 @@
         <X class="w-5 h-5" />
       </button>
       <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
-        <Wifi class="w-5 h-5" />
+        {#if $profileModal.kind === 'ethernet'}
+          <Cable class="w-5 h-5" />
+        {:else}
+          <Wifi class="w-5 h-5" />
+        {/if}
         Connect {$profileModal.iface}
       </h3>
 
       {#if $profileModal.profiles.length === 0}
         <div class="text-center py-6">
-          <Wifi class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
-          <p class="font-medium">No saved profiles for this interface</p>
-          <p class="text-sm text-base-content/60 mt-1">
-            Scan for networks and connect in the Wi-Fi section to create a profile.
-          </p>
+          {#if $profileModal.kind === 'ethernet'}
+            <Cable class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
+            <p class="font-medium">No saved profiles for this interface</p>
+            <p class="text-sm text-base-content/60 mt-1">
+              Create a connection profile in the Connections section to connect this cable.
+            </p>
+          {:else}
+            <Wifi class="w-14 h-14 mx-auto mb-3 text-base-content/20" />
+            <p class="font-medium">No saved profiles for this interface</p>
+            <p class="text-sm text-base-content/60 mt-1">
+              Scan for networks and connect in the Wi-Fi section to create a profile.
+            </p>
+          {/if}
           <button type="button" class="btn btn-primary mt-5" onclick={handleManage}>Manage</button>
         </div>
       {:else}

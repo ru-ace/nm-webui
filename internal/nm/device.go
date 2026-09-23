@@ -142,7 +142,12 @@ func (d *Device) ActiveConnection() (dbus.ObjectPath, error) {
 	return d.c.propObjectPath(d.obj, DeviceIf, "ActiveConnection")
 }
 
-// Disconnect deactivates the active connection on the device.
+// Disconnect disconnects the device and blocks NetworkManager from
+// automatically reconnecting it. This is the D-Bus Device.Disconnect method
+// (the same operation as `nmcli device disconnect`): NetworkManager.DeactivateConnection
+// alone would leave autoconnect enabled, so a profile with autoconnect=yes
+// silently comes back up as soon as the device settles. A later manual
+// activation (ActivateConnection) clears the block.
 func (d *Device) Disconnect() error {
 	acPath, err := d.ActiveConnection()
 	if err != nil {
@@ -151,10 +156,7 @@ func (d *Device) Disconnect() error {
 	if acPath == "/" {
 		return nil
 	}
-	if err := d.c.nm.Call(NmIfName+".DeactivateConnection", 0, acPath).Err; err != nil {
-		return err
-	}
-	return nil
+	return d.obj.Call(DeviceIf+".Disconnect", 0).Err
 }
 
 // Address is a parsed IP address.

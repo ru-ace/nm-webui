@@ -26,7 +26,7 @@
     $devices.filter(d => d.wireless).forEach(d => loadWifiStatus(d.interface));
   });
 
-  let wifiConnectingIface: string | null = null;
+  let connectingIface: string | null = null;
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
   $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet' && d.managed && d.state >= 30);
   $: modemDevices = $devices.filter(d => !!d.modem && d.managed);
@@ -43,6 +43,7 @@
   function getStateBadge(state: number) {
     const states: Record<number, { label: string; class: string }> = {
       100: { label: 'Connected', class: 'badge-success' },
+      110: { label: 'Disconnecting', class: 'badge-warning' },
       70: { label: 'Getting IP', class: 'badge-warning' },
       50: { label: 'Configuring', class: 'badge-warning' },
       30: { label: 'Disconnected', class: 'badge-ghost' },
@@ -52,21 +53,26 @@
     return states[state] || { label: 'Unknown', class: 'badge-ghost' };
   }
 
-  // Dashboard Wi-Fi card "Connect": ask NetworkManager which saved profiles
-  // are applicable to this interface and either activate directly (single
+  // Dashboard card "Connect": ask NetworkManager which saved profiles are
+  // applicable to this interface and either activate directly (single
   // profile), or let the user pick one. With no applicable profiles the modal
-  // falls back to the Wi-Fi section via its Manage button.
-  async function handleWifiCardConnect(device: { interface: string }) {
+  // falls back to a Manage route (Wi-Fi section for wireless cards, the
+  // Connections page for wired ones, where profiles can be created).
+  async function handleCardConnect(
+    device: { interface: string; type_name?: string },
+    manage: string,
+    kind: 'wifi' | 'ethernet'
+  ) {
     const iface = device.interface;
-    wifiConnectingIface = iface;
+    connectingIface = iface;
     try {
       const { connections: profiles } = await api.devices.connections(iface);
       if (profiles.length === 0) {
-        await showProfileModal(iface, profiles);
+        await showProfileModal(iface, profiles, { manage, kind });
       } else if (profiles.length === 1) {
         await activateConnection(profiles[0].uuid);
       } else {
-        const selected = await showProfileModal(iface, profiles);
+        const selected = await showProfileModal(iface, profiles, { manage, kind });
         if (selected) {
           await activateConnection(selected.uuid);
         }
@@ -75,7 +81,7 @@
       console.error('Failed to load device profiles:', e);
       showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
     } finally {
-      wifiConnectingIface = null;
+      connectingIface = null;
     }
   }
 </script>
@@ -269,15 +275,15 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => connectDevice(device.interface)}
-                    disabled={loadingMap[`connect-${device.interface}`]}
+                    onclick={() => handleCardConnect(device, '/connections', 'ethernet')}
+                    disabled={connectingIface === device.interface}
                   >
                     Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={() => navigate('/devices')}>Manage</button>
+                <button type="button" class="btn btn-ghost" onclick={() => navigate('/connections')}>Manage</button>
               </div>
             </div>
           </div>
@@ -339,8 +345,8 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => handleWifiCardConnect(device)}
-                    disabled={wifiConnectingIface === device.interface}
+                    onclick={() => handleCardConnect(device, `/wifi?iface=${device.interface}`, 'wifi')}
+                    disabled={connectingIface === device.interface}
                   >
                     Connect
                   </button>

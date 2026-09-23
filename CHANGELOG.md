@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shortcut into the Wi-Fi section when none exist — backed by the new
   `GET /api/v1/devices/{iface}/connections` endpoint (NetworkManager
   `Device.AvailableConnections`)
+- Dashboard Ethernet cards: the **Connect** button on a disconnected wired
+  card now opens the same profile picker — activates immediately when a
+  single profile applies, lists applicable profiles when several do, and
+  falls back to the Profiles section via **Manage** when none exist
 
 ### Changed
 
@@ -35,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Dashboard/Wi-Fi/Devices **Disconnect** could silently reconnect: the button
+  used `NetworkManager.DeactivateConnection`, which leaves autoconnect enabled,
+  so a profile with `autoconnect=yes` came back up on its own moments later
+  (and a wired card briefly vanished while the device cycled states). It now
+  calls the D-Bus `Device.Disconnect` method (the same operation as
+  `nmcli device disconnect`), which pins the device to Disconnected until a
+  manual Connect
 - Profile cards could stay stale after a profile was activated or deactivated
   outside the UI: the sync listened for the `ConnectionActivated` /
   `ConnectionDeactivated` bus signals, which NetworkManager removed
