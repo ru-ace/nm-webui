@@ -12,9 +12,13 @@
     loadWifiStatus,
     disconnectDevice,
     connectDevice,
+    activateConnection,
+    showToast,
     captivePortal,
     recheckCaptivePortal
   } from '$lib/stores/app';
+  import { showProfileModal } from '$lib/stores/modals';
+  import { api } from '$lib/api/client';
   import { navigate } from '$lib/stores/router';
   import { derived } from 'svelte/store';
 
@@ -22,6 +26,7 @@
     $devices.filter(d => d.wireless).forEach(d => loadWifiStatus(d.interface));
   });
 
+  let wifiConnectingIface: string | null = null;
   $: wifiDevices = $devices.filter(d => d.wireless && d.managed);
   $: ethernetDevices = $devices.filter(d => d.type_name === 'ethernet' && d.managed && d.state >= 30);
   $: modemDevices = $devices.filter(d => !!d.modem && d.managed);
@@ -45,6 +50,33 @@
       10: { label: 'Unmanaged', class: 'badge-neutral' }
     };
     return states[state] || { label: 'Unknown', class: 'badge-ghost' };
+  }
+
+  // Dashboard Wi-Fi card "Connect": ask NetworkManager which saved profiles
+  // are applicable to this interface and either activate directly (single
+  // profile), or let the user pick one. With no applicable profiles the modal
+  // falls back to the Wi-Fi section via its Manage button.
+  async function handleWifiCardConnect(device: { interface: string }) {
+    const iface = device.interface;
+    wifiConnectingIface = iface;
+    try {
+      const { connections: profiles } = await api.devices.connections(iface);
+      if (profiles.length === 0) {
+        await showProfileModal(iface, profiles);
+      } else if (profiles.length === 1) {
+        await activateConnection(profiles[0].uuid);
+      } else {
+        const selected = await showProfileModal(iface, profiles);
+        if (selected) {
+          await activateConnection(selected.uuid);
+        }
+      }
+    } catch (e: any) {
+      console.error('Failed to load device profiles:', e);
+      showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
+    } finally {
+      wifiConnectingIface = null;
+    }
   }
 </script>
 
@@ -284,8 +316,7 @@
                 </div>
               {:else if device.state === 30}
                 <div class="text-center py-4 text-base-content/50">
-                  <WifiOff class="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Not connected</p>
+                  <WifiOff class="w-12 h-12 mx-auto opacity-50" />
                 </div>
               {:else if device.state > 30 && device.state < 100}
                 <div class="flex items-center justify-center gap-2 py-4">
@@ -308,8 +339,8 @@
                   <button
                     type="button"
                     class="btn btn-primary flex-1"
-                    onclick={() => connectDevice(device.interface)}
-                    disabled={loadingMap[`connect-${device.interface}`]}
+                    onclick={() => handleWifiCardConnect(device)}
+                    disabled={wifiConnectingIface === device.interface}
                   >
                     Connect
                   </button>

@@ -11,6 +11,7 @@
   import PortalPage from './routes/portal/+page.svelte';
   import PowerPage from './routes/power/+page.svelte';
   import PasswordModal from './routes/wifi/PasswordModal.svelte';
+  import ProfileSelectModal from './lib/components/ProfileSelectModal.svelte';
   import { currentPath } from '$lib/stores/router';
 
   onMount(() => {
@@ -60,3 +61,4 @@
 </Layout>
 
 <PasswordModal />
+<ProfileSelectModal />

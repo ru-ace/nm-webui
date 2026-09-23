@@ -69,6 +69,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/captive-portal/proxy", s.handlePortalProxyPost)
 			r.Get("/devices", s.handleDeviceList)
 			r.Get("/devices/{iface}", s.handleDeviceGet)
+			r.Get("/devices/{iface}/connections", s.handleDeviceConnections)
 			r.Post("/devices/{iface}/disconnect", s.handleDeviceDisconnect)
 			r.Post("/devices/{iface}/up", s.handleDeviceUp)
 			r.Route("/wifi", func(r chi.Router) {

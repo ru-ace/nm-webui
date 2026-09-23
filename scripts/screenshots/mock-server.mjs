@@ -18,6 +18,7 @@ import {
   WIFI_STATUS,
   WIFI_NETWORKS,
   CONNECTIONS,
+  DEVICE_CONNECTIONS,
   CAPTIVE_PORTAL,
   CAPTIVE_PORTAL_PORTAL,
   PORTAL_PAGE,
@@ -131,6 +132,14 @@ export function startMockServer({ distDir = join(REPO_ROOT, 'internal', 'webui',
         if (!dev) return json(res, { error: 'device not found' }, 404);
         if (action) return method === 'POST' ? json(res, { status: 'ok' }) : json(res, { error: 'method not allowed' }, 405);
         return json(res, dev);
+      }
+
+      // Profiles applicable to a device (NetworkManager AvailableConnections).
+      const devConnsMatch = p.match(/^\/api\/v1\/devices\/([^/]+)\/connections$/);
+      if (devConnsMatch) {
+        const iface = decodeURIComponent(devConnsMatch[1]);
+        if (method !== 'GET') return json(res, { error: 'method not allowed' }, 405);
+        return json(res, { connections: DEVICE_CONNECTIONS[iface] || [] });
       }
 
       const wifiMatch = p.match(/^\/api\/v1\/wifi\/([^/]+)\/(networks|status|scan|connect)$/);

@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Profiles: "Forget" now asks for confirmation (new reusable ConfirmModal used
   in desktop and mobile card layouts)
+- Dashboard Wi-Fi cards: the **Connect** button now opens a profile picker
+  when several saved profiles apply to the interface, activates the only
+  profile immediately when exactly one applies, and falls back to a **Manage**
+  shortcut into the Wi-Fi section when none exist — backed by the new
+  `GET /api/v1/devices/{iface}/connections` endpoint (NetworkManager
+  `Device.AvailableConnections`)
 
 ### Changed
 

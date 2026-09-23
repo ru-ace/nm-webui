@@ -15,6 +15,7 @@ data (see [`docs/screenshots/`](screenshots/) for the raw files).
 |---|---|---|---|
 | [Dashboard](#dashboard) | overview | [`dashboard.png`](screenshots/dashboard.png) | [`dashboard-mobile.png`](screenshots/dashboard-mobile.png) |
 | [Dashboard — Captive portal](#dashboard--captive-portal) | portal detected banner | [`dashboard-portal.png`](screenshots/dashboard-portal.png) | [`dashboard-portal-mobile.png`](screenshots/dashboard-portal-mobile.png) |
+| [Dashboard — Connect profile](#dashboard--connect-profile-dialog) | profile picker | [`dashboard-connect.png`](screenshots/dashboard-connect.png) | [`dashboard-connect-mobile.png`](screenshots/dashboard-connect-mobile.png) |
 | [Wi-Fi](#wi-fi) | scanned networks | [`wifi.png`](screenshots/wifi.png) | [`wifi-mobile.png`](screenshots/wifi-mobile.png) |
 | [Wi-Fi — Join dialog](#wi-fi--join-dialog) | password modal | [`wifi-join.png`](screenshots/wifi-join.png) | [`wifi-join-mobile.png`](screenshots/wifi-join-mobile.png) |
 | [Portal](#portal) | mini-browser | [`portal.png`](screenshots/portal.png) | [`portal-mobile.png`](screenshots/portal-mobile.png) |
@@ -66,6 +67,30 @@ connectivity until sign-in completes.
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-portal-dark-mobile.png">
     <img src="screenshots/dashboard-portal-mobile.png" alt="Dashboard with captive portal (mobile)" width="390">
+  </picture>
+</details>
+
+## Dashboard — Connect profile dialog
+
+When a disconnected Wi-Fi card has several saved profiles applicable to it, the
+**Connect** button opens a picker instead of activating a profile blindly: each
+row shows the profile name, SSID, interface binding ("Any interface" for
+unbound profiles) and the IPv4/IPv6 method, and selecting one activates it. A
+single applicable profile connects immediately; with none, the modal falls back
+to a **Manage** shortcut into the Wi-Fi section. Here the `wlan1` card has three
+saved profiles to choose from.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-connect-dark.png">
+  <img src="screenshots/dashboard-connect.png" alt="Dashboard — connect to a Wi-Fi profile" width="1280">
+</picture>
+
+<details>
+  <summary>📱 Mobile</summary>
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-connect-dark-mobile.png">
+    <img src="screenshots/dashboard-connect-mobile.png" alt="Dashboard — connect to a Wi-Fi profile (mobile)" width="390">
   </picture>
 </details>
 

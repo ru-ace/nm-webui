@@ -59,6 +59,19 @@ const states = [
     },
   },
   {
+    id: 'dashboard-connect', // profile-picker modal opened from a disconnected Wi-Fi card
+    run: async (page) => {
+      await page.goto(`${base}/`, { waitUntil: 'load' });
+      await page.getByText('External IP').waitFor();
+      const wifiSection = page.locator('section').filter({ hasText: 'Wi-Fi Interfaces' });
+      await wifiSection.getByRole('button', { name: 'Connect', exact: true }).click();
+      await page.locator('.modal-open').waitFor();
+      await page.getByText('Café_Central', { exact: true }).waitFor();
+      await page.waitForTimeout(400);
+      return { fullPage: false };
+    },
+  },
+  {
     id: 'wifi',
     run: async (page) => {
       await page.goto(`${base}/wifi?iface=wlan0`, { waitUntil: 'load' });

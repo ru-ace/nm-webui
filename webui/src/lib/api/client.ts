@@ -35,6 +35,7 @@ export const api = {
   devices: {
     list: () => request<{ devices: DeviceInfo[] }>('/devices'),
     get: (iface: string) => request<DeviceInfo>(`/devices/${encodeURIComponent(iface)}`),
+    connections: (iface: string) => request<{ connections: ConnectionInfo[] }>(`/devices/${encodeURIComponent(iface)}/connections`),
     disconnect: (iface: string) => request<{ status: string }>(`/devices/${encodeURIComponent(iface)}/disconnect`, { method: 'POST' }),
     up: (iface: string) => request<{ status: string }>(`/devices/${encodeURIComponent(iface)}/up`, { method: 'POST' })
   },
