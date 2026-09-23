@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, Copy, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings, Smartphone } from '@lucide/svelte';
-  import { activateConnection, deactivateConnection, toggleAutoconnect, forgetConnection } from '$lib/stores/app';
+  import { ChevronDown, ChevronUp, Copy, Trash2, Unlink2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Settings, Smartphone } from '@lucide/svelte';
+  import { deactivateConnection, toggleAutoconnect } from '$lib/stores/app';
 
   export let conn: any;
   export let loadingMap: any;
   export let onEdit: ((c: any) => void) | undefined = undefined;
+  export let onForget: ((c: any) => void) | undefined = undefined;
 
   let expanded = false;
 
@@ -58,23 +59,6 @@
           {/if}
           <span class="hidden sm:inline">{conn.autoconnect ? 'Auto' : 'Manual'}</span>
         </button>
-        {#if conn.active}
-          <button
-            class="btn btn-error btn-sm gap-1"
-            onclick={() => deactivateConnection(conn.uuid)}
-            disabled={loadingMap[`deactivate-${conn.uuid}`]}
-          >
-            Disconnect
-          </button>
-        {:else if conn.device}
-          <button
-            class="btn btn-primary btn-sm gap-1"
-            onclick={() => activateConnection(conn.uuid)}
-            disabled={loadingMap[`activate-${conn.uuid}`]}
-          >
-            Connect
-          </button>
-        {/if}
 <button class="btn btn-ghost btn-sm" onclick={() => expanded = !expanded}>
             {#if expanded}
               <ChevronUp class="w-4 h-4" />
@@ -117,9 +101,15 @@
           <button class="btn btn-ghost btn-sm flex-1 gap-1" onclick={() => { if (onEdit) { onEdit(conn); } else { window.dispatchEvent(new CustomEvent('edit-connection', { detail: conn })); } }}>
             <Settings class="w-4 h-4" /> Edit
           </button>
-          <button class="btn btn-error btn-sm flex-1 gap-1" onclick={() => forgetConnection(conn.uuid)} disabled={loadingMap[`delete-${conn.uuid}`]}>
-            <Trash2 class="w-4 h-4" /> Forget
-          </button>
+          {#if conn.active}
+            <button class="btn btn-error btn-sm flex-1 gap-1" onclick={() => deactivateConnection(conn.uuid)} disabled={loadingMap[`deactivate-${conn.uuid}`]}>
+              <Unlink2 class="w-4 h-4" /> Disconnect
+            </button>
+          {:else}
+            <button class="btn btn-error btn-sm flex-1 gap-1" onclick={() => { if (onForget) { onForget(conn); } }} disabled={loadingMap[`delete-${conn.uuid}`]}>
+              <Trash2 class="w-4 h-4" /> Forget
+            </button>
+          {/if}
         </div>
       </div>
     {/if}

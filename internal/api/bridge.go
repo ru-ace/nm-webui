@@ -17,10 +17,12 @@ func (s *Server) startBridge(ctx context.Context) error {
 	matchRules := [][]dbus.MatchOption{
 		{dbus.WithMatchInterface(nm.NmIfName)},
 		{dbus.WithMatchInterface(nm.DeviceIf), dbus.WithMatchMember("StateChanged")},
+		{dbus.WithMatchInterface(nm.ActiveConnIf), dbus.WithMatchMember("StateChanged")},
 		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("ScanDone")},
 		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("AccessPointAdded")},
 		{dbus.WithMatchInterface(nm.WirelessIf), dbus.WithMatchMember("AccessPointRemoved")},
 		{dbus.WithMatchInterface(nm.SettingsIfName)},
+		{dbus.WithMatchInterface(nm.SettingsConnIf), dbus.WithMatchMember("Updated")},
 	}
 	ch, cleanup, err := s.nm.WatchMany(matchRules...)
 	if err != nil {
@@ -76,6 +78,39 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 			}
 		}
 
+	case nm.ActiveConnIf + ".StateChanged":
+		// Every active connection emits StateChanged on each transition,
+		// regardless of what triggered the activation/deactivation (our UI,
+		// KDE, nmcli, autoconnect, ...). Only the terminal states matter.
+		if len(sig.Body) > 0 {
+			state, ok := sig.Body[0].(uint32)
+			if !ok {
+				return
+			}
+			var active bool
+			switch state {
+			case nm.ACStateActivated:
+				active = true
+			case nm.ACStateDeactivated:
+				active = false
+			default:
+				return // transient states (activating, deactivating)
+			}
+			if uuid, err := s.nm.ActiveConnectionByPath(sig.Path).Uuid(); err == nil && uuid != "" {
+				s.hub.Publish("connection_state_changed", map[string]interface{}{
+					"uuid":   uuid,
+					"active": active,
+				})
+			} else {
+				// The active connection object may already be gone; fall back
+				// to a full profile reload.
+				s.hub.Publish("connections_changed", map[string]interface{}{
+					"event": "connection-state-fallback",
+					"path":  string(sig.Path),
+				})
+			}
+		}
+
 	case nm.DeviceIf + ".StateChanged":
 		var state, reason uint32
 		if len(sig.Body) > 0 {
@@ -105,6 +140,13 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 	case nm.SettingsIfName + ".NewConnection", nm.SettingsIfName + ".ConnectionRemoved":
 		s.hub.Publish("connections_changed", map[string]interface{}{
 			"event": strings.TrimPrefix(sig.Name, nm.SettingsIfName+"."),
+			"path":  sig.Path,
+		})
+	case nm.SettingsConnIf + ".Updated":
+		// A profile was modified (e.g. edited via KDE or nmcli): re-read the
+		// whole list so cards reflect the new name/settings.
+		s.hub.Publish("connections_changed", map[string]interface{}{
+			"event": "Updated",
 			"path":  sig.Path,
 		})
 	}

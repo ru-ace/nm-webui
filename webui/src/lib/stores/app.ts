@@ -300,6 +300,7 @@ export function initEventSource() {
     'scan_done',
     'wifi_networks_changed',
     'connections_changed',
+    'connection_state_changed',
     'wifi_connected',
     'wifi_failed',
     'manager_state_changed',
@@ -329,6 +330,12 @@ export function initEventSource() {
 
   es.onerror = () => {
     // Browser EventSource automatically reconnects with Last-Event-ID
+  };
+
+  // Refresh on (re)connect: a dropped stream may have missed events outside
+  // the hub replay window, leaving profile cards stale.
+  es.onopen = () => {
+    loadConnections();
   };
 
   return es;
@@ -378,6 +385,12 @@ function handleEvent(type: string, data: any) {
       break;
     case 'connections_changed':
       loadConnections();
+      break;
+    case 'connection_state_changed':
+      // Targeted patch from NM ActiveConnection StateChanged signals: covers
+      // both UI actions (the local reload races the async teardown) and
+      // external changes (nmcli, autoconnect, other tabs and clients).
+      connections.update(($c) => $c.map((co) => (co.uuid === data.uuid ? { ...co, active: !!data.active } : co)));
       break;
     case 'devices_changed':
       loadDevices();

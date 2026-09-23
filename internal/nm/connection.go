@@ -435,6 +435,13 @@ type ActiveConnection struct {
 	obj  dbus.BusObject
 }
 
+// ActiveConnectionByPath returns an active connection handle by its object
+// path. It is used to resolve the uuid of an active connection referenced by
+// an NM signal.
+func (c *Client) ActiveConnectionByPath(p dbus.ObjectPath) *ActiveConnection {
+	return &ActiveConnection{c: c, path: p, obj: c.conn.Object(DBusService, p)}
+}
+
 // ActivateConnection asks NM to activate a profile on a device.
 func (c *Client) ActivateConnection(conn *Connection, dev *Device, specific dbus.ObjectPath) (*ActiveConnection, error) {
 	devPath := dbus.ObjectPath("/")
@@ -484,6 +491,19 @@ func (ac *ActiveConnection) StateReason() (uint32, uint32, error) {
 // SpecificObject returns the specific object (e.g. the AP path) used.
 func (ac *ActiveConnection) SpecificObject() (dbus.ObjectPath, error) {
 	return ac.c.propObjectPath(ac.obj, ActiveConnIf, "SpecificObject")
+}
+
+// Uuid returns the profile uuid of the active connection.
+func (ac *ActiveConnection) Uuid() (string, error) {
+	v, err := ac.obj.GetProperty(ActiveConnIf + ".Uuid")
+	if err != nil {
+		return "", err
+	}
+	uuid, ok := v.Value().(string)
+	if !ok || uuid == "" {
+		return "", fmt.Errorf("Uuid: unexpected property value %T", v.Value())
+	}
+	return uuid, nil
 }
 
 // Deactivate deactivates the active connection.

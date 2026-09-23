@@ -7,8 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Profiles: "Forget" now asks for confirmation (new reusable ConfirmModal used
+  in desktop and mobile card layouts)
+
 ### Changed
 
+- Profiles compact card: the Disconnect button was removed (the card is now
+  expand-only), and so was the Connect shortcut for inactive profiles, which
+  was unreachable because only active profiles carry a device
+- Profiles expanded card: the bottom action adapts to the profile state —
+  active profile shows "Disconnect", inactive profile shows "Forget" (with
+  confirmation)
+- Profile active-state sync reworked to track NetworkManager
+  `Connection.Active` `StateChanged` signals (SSE `connection_state_changed`
+  carrying the profile uuid), so cards update no matter what triggered the
+  change (this UI, nmcli, KDE, autoconnect, another tab); if the
+  active-connection object is already gone, the UI falls back to a full
+  profile reload
+
+### Fixed
+
+- Profile cards could stay stale after a profile was activated or deactivated
+  outside the UI: the sync listened for the `ConnectionActivated` /
+  `ConnectionDeactivated` bus signals, which NetworkManager removed
+- Profile edits made outside the UI (e.g. via KDE or nmcli) were invisible:
+  `Settings.Connection.Updated` is now bridged to the existing
+  `connections_changed` SSE refresh, so the card shows the new name/settings
 - Default HTTP listen port changed from 8080 to 8090: updated the default
   `listen` value in `internal/config`, the Vite dev proxy target, the
   Makefile `dev` run target and generated config example, the packaged

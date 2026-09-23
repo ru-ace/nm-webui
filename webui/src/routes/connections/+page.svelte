@@ -1,13 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Plus, Trash2, ToggleLeft, ToggleRight, Loader2, Wifi, Cable, Database, Copy, ChevronDown, ChevronUp, Settings, Smartphone } from '@lucide/svelte';
-  import { connections, loading, loadConnections, forgetConnection, toggleAutoconnect, activateConnection, deactivateConnection } from '$lib/stores/app';
+  import { Plus, Wifi, Cable, Database, Settings, Smartphone } from '@lucide/svelte';
+  import { connections, loading, loadConnections, forgetConnection } from '$lib/stores/app';
   import { headerAction } from '$lib/stores/header';
   import ConnectionModal from './ConnectionModal.svelte';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import ConnectionRow from './ConnectionRow.svelte';
 
   let showModal = false;
   let editingConnection: any = null;
+  let confirmForget = false;
+  let connToForget: any = null;
 
   onMount(() => {
     loadConnections();
@@ -36,6 +39,18 @@
     showModal = false;
     editingConnection = null;
   }
+
+  function requestForget(conn: any) {
+    connToForget = conn;
+    confirmForget = true;
+  }
+
+  function handleForgetConfirm() {
+    if (connToForget) {
+      forgetConnection(connToForget.uuid);
+    }
+    connToForget = null;
+  }
 </script>
 
 <div class="space-y-6 w-full max-w-4xl mx-auto">
@@ -51,6 +66,14 @@
   </div>
 
   <ConnectionModal bind:show={showModal} bind:editing={editingConnection} on:submit={handleSubmit} />
+  <ConfirmModal
+    bind:show={confirmForget}
+    title="Forget profile?"
+    message={connToForget ? `This will permanently remove the profile "${connToForget.id}" and its saved settings.` : ''}
+    confirmLabel="Forget"
+    onConfirm={handleForgetConfirm}
+    onCancel={() => { connToForget = null; }}
+  />
 
   {#if $connections.length === 0 && !$loading.connections}
     <div class="text-center py-12">
@@ -74,7 +97,7 @@
         </h2>
         <div class="space-y-2">
           {#each group.items as conn}
-            <ConnectionRow {conn} {loadingMap} onEdit={(c) => { editingConnection = c; showModal = true; }} />
+            <ConnectionRow {conn} {loadingMap} onEdit={(c) => { editingConnection = c; showModal = true; }} onForget={requestForget} />
           {/each}
         </div>
       </section>
