@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Default HTTP listen port changed from 8080 to 8090: updated the default
+  `listen` value in `internal/config`, the Vite dev proxy target, the
+  Makefile `dev` run target and generated config example, the packaged
+  `deploy/config.yaml`, the install script banner, and both INSTALL docs
+  (firewall rules, CLI examples, verification steps)
 - Captive portal detection: NetworkManager's `portal` verdict is now
   re-verified by the detector probe, which shares the portal session cookie
   jar. Right after a successful sign-in the UI reports `online` as soon as the

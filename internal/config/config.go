@@ -43,7 +43,7 @@ type Config struct {
 // Load parses configuration from flags, file and environment.
 func Load(args []string) (*Config, error) {
 	cfg := &Config{
-		Listen:          "0.0.0.0:8080",
+		Listen:          "0.0.0.0:8090",
 		AuthPass:        "",
 		InterfaceFilter: DefaultInterfaceFilter,
 		TLS:             false,

@@ -118,7 +118,7 @@ sudo ./deploy/install.sh /usr/local/bin/nm-webui /etc/nm-webui/config.yaml nm-we
 Отредактируйте `/etc/nm-webui/config.yaml`:
 
 ```yaml
-listen: "0.0.0.0:8080"           # Адрес прослушивания
+listen: "0.0.0.0:8090"           # Адрес прослушивания
 auth-pass: "ваш-надежный-пароль"  # Задайте пароль!
 interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false                        # Включить HTTPS
@@ -136,7 +136,7 @@ power-action-password: ""         # Пароль для раздела Power (п
 
 | Переменная | Описание |
 |------------|----------|
-| `NM_WEBUI_LISTEN` | Адрес прослушивания, напр. `0.0.0.0:8080` |
+| `NM_WEBUI_LISTEN` | Адрес прослушивания, напр. `0.0.0.0:8090` |
 | `NM_WEBUI_AUTH_PASS` | Пароль администратора (пусто = без авторизации) |
 | `NM_WEBUI_INTERFACE_FILTER` | Регулярное выражение фильтра интерфейсов |
 | `NM_WEBUI_LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
@@ -154,7 +154,7 @@ power-action-password: ""         # Пароль для раздела Power (п
 Флаги переопределяют файл конфига и переменные окружения:
 
 ```bash
-nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+nm-webui --listen 0.0.0.0:8090 --auth-pass "secret" --tls --log-level debug
 nm-webui --power-action-password "secret"   # включить раздел Power
 ```
 
@@ -188,7 +188,7 @@ journalctl -u nm-webui -f
 nm-webui --config /etc/nm-webui/config.yaml
 
 # С флагами (переопределяют конфиг)
-nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls
+nm-webui --listen 0.0.0.0:8090 --auth-pass "secret" --tls
 ```
 
 ---
@@ -248,21 +248,21 @@ sudo systemctl restart nm-webui
 
 ```bash
 # UFW
-sudo ufw allow 8080/tcp
+sudo ufw allow 8090/tcp
 
 # firewalld
-sudo firewall-cmd --permanent --add-port=8080/tcp
+sudo firewall-cmd --permanent --add-port=8090/tcp
 sudo firewall-cmd --reload
 
 # iptables
-sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8090 -j ACCEPT
 ```
 
 ---
 
 ## Доступ к веб-интерфейсу
 
-Откройте в браузере: `http://<ip-устройства>:8080`
+Откройте в браузере: `http://<ip-устройства>:8090`
 
 - По умолчанию: без пароля (если `auth-pass` пустой)
 - С авторизацией: логин `admin`, пароль из конфига
@@ -299,8 +299,8 @@ sudo usermod -a -G netdev $USER
 ### Порт уже занят
 
 ```bash
-# Проверьте, что на 8080
-sudo ss -tlnp | grep 8080
+# Проверьте, что на 8090
+sudo ss -tlnp | grep 8090
 
 # Смените порт в конфиге
 listen: "0.0.0.0:8081"

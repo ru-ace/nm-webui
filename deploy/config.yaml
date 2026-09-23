@@ -4,7 +4,7 @@
 # or command line flags (highest priority)
 
 # HTTP listen address (IP:port)
-listen: "0.0.0.0:8080"
+listen: "0.0.0.0:8090"
 
 # Admin password for HTTP Basic Auth (empty = no auth)
 # Can also be set via NM_WEBUI_AUTH_PASS env var

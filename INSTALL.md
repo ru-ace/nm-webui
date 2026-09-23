@@ -118,7 +118,7 @@ sudo ./deploy/install.sh /usr/local/bin/nm-webui /etc/nm-webui/config.yaml nm-we
 Edit `/etc/nm-webui/config.yaml`:
 
 ```yaml
-listen: "0.0.0.0:8080"           # Listen address
+listen: "0.0.0.0:8090"           # Listen address
 auth-pass: "your-secure-password" # Set a password!
 interface-filter: "^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$"
 tls: false                        # Enable HTTPS
@@ -136,7 +136,7 @@ Every option can also be set with `NM_WEBUI_*` environment variables
 
 | Variable | Description |
 |----------|-------------|
-| `NM_WEBUI_LISTEN` | Listen address, e.g. `0.0.0.0:8080` |
+| `NM_WEBUI_LISTEN` | Listen address, e.g. `0.0.0.0:8090` |
 | `NM_WEBUI_AUTH_PASS` | Admin password (empty = no auth) |
 | `NM_WEBUI_INTERFACE_FILTER` | Interface filter regex |
 | `NM_WEBUI_LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
@@ -154,7 +154,7 @@ documented in the Captive Portal section of [README.md](README.md).
 Flags override the config file and environment variables:
 
 ```bash
-nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls --log-level debug
+nm-webui --listen 0.0.0.0:8090 --auth-pass "secret" --tls --log-level debug
 nm-webui --power-action-password "secret"   # enable the Power section
 ```
 
@@ -188,7 +188,7 @@ journalctl -u nm-webui -f
 nm-webui --config /etc/nm-webui/config.yaml
 
 # With flags (override config)
-nm-webui --listen 0.0.0.0:8080 --auth-pass "secret" --tls
+nm-webui --listen 0.0.0.0:8090 --auth-pass "secret" --tls
 ```
 
 ---
@@ -247,21 +247,21 @@ sudo systemctl restart nm-webui
 
 ```bash
 # UFW
-sudo ufw allow 8080/tcp
+sudo ufw allow 8090/tcp
 
 # firewalld
-sudo firewall-cmd --permanent --add-port=8080/tcp
+sudo firewall-cmd --permanent --add-port=8090/tcp
 sudo firewall-cmd --reload
 
 # iptables
-sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8090 -j ACCEPT
 ```
 
 ---
 
 ## Access Web UI
 
-Open browser: `http://<device-ip>:8080`
+Open browser: `http://<device-ip>:8090`
 
 - Default: no password (if `auth-pass` empty)
 - With auth: username `admin`, password from config
@@ -298,8 +298,8 @@ sudo usermod -a -G netdev $USER
 ### Port Already in Use
 
 ```bash
-# Check what's on 8080
-sudo ss -tlnp | grep 8080
+# Check what's on 8090
+sudo ss -tlnp | grep 8090
 
 # Change port in config
 listen: "0.0.0.0:8081"

@@ -96,7 +96,7 @@ rpm: cross-amd64
 
 # Development
 dev:
-	go run -ldflags="$(LDFLAGS)" ./cmd/nm-webui --listen :8080 --log-level debug
+	go run -ldflags="$(LDFLAGS)" ./cmd/nm-webui --listen :8090 --log-level debug
 
 # Testing
 test:
@@ -121,7 +121,7 @@ config-example:
 	@echo "# nm-webui configuration" > config.yaml.example
 	@echo "# Copy to /etc/nm-webui/config.yaml or use --config flag" >> config.yaml.example
 	@echo "" >> config.yaml.example
-	@echo "listen: \"0.0.0.0:8080\"" >> config.yaml.example
+	@echo "listen: \"0.0.0.0:8090\"" >> config.yaml.example
 	@echo "auth-pass: \"\"" >> config.yaml.example
 	@echo "interface-filter: \"^(eth|en|wlan|wifi|wwan|wwan0|cdc|wl|ra|usb)[0-9A-Za-z.@_-]*$$\"" >> config.yaml.example
 	@echo "tls: false" >> config.yaml.example
