@@ -10,6 +10,9 @@
 
   let menuOpen = false;
 
+  const isCurrent = (item) =>
+    $currentPath === item.href || (item.href !== '/' && $currentPath.startsWith(item.href));
+
   $: navItems = [
     { href: '/', label: 'Dashboard', icon: Monitor },
     { href: '/wifi', label: 'Wi-Fi', icon: Wifi },
@@ -120,8 +123,10 @@
       <div class="menu gap-2 p-0 items-center w-full">
         {#each navItems as item}
           <button
-            class:active={$currentPath === item.href || (item.href !== '/' && $currentPath.startsWith(item.href))}
-            class="flex w-full max-w-sm mx-auto min-h-12 items-center justify-center gap-3 rounded-lg px-4 py-3 text-base font-medium"
+            aria-current={isCurrent(item) ? 'page' : undefined}
+            class="{isCurrent(item)
+              ? 'flex w-full max-w-sm mx-auto min-h-12 cursor-default items-center justify-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-base-content/60'
+              : 'flex w-full max-w-sm mx-auto min-h-12 items-center justify-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors hover:bg-base-200 hover:text-primary'}"
             type="button"
             onclick={() => go(item.href)}
           >
