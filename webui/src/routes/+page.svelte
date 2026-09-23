@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert, Monitor } from '@lucide/svelte';
+  import { CheckCircle, AlertTriangle, XCircle, WifiOff, Wifi, Signal, Shield, Loader2, ChevronDown, ChevronUp, RefreshCw, Smartphone, EthernetPort, ShieldAlert, Monitor, Link2, Unlink2, Settings } from '@lucide/svelte';
   import {
     systemStatus,
     devices,
@@ -229,25 +229,25 @@
                 {#if device.state === 100}
                   <button
                     type="button"
-                    class="btn btn-error flex-1"
+                    class="btn btn-error flex-1 gap-1"
                     onclick={() => disconnectDevice(device.interface)}
                     disabled={loadingMap[`disconnect-${device.interface}`]}
                   >
-                    Disconnect
+                    <Unlink2 class="w-4 h-4" /> Disconnect
                   </button>
                 {:else if device.state === 30}
                   <button
                     type="button"
-                    class="btn btn-primary flex-1"
+                    class="btn btn-primary flex-1 gap-1"
                     onclick={() => connectWithPicker(device.interface, '/connections', 'ethernet')}
                     disabled={$connectingIface === device.interface}
                   >
-                    Connect
+                    <Link2 class="w-4 h-4" /> Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={() => navigate('/connections')}>Manage</button>
+                <button type="button" class="btn btn-ghost gap-1" onclick={() => navigate('/connections')}><Settings class="w-4 h-4" /> Manage</button>
               </div>
             </div>
           </div>
@@ -299,25 +299,25 @@
                 {#if device.state === 100}
                   <button
                     type="button"
-                    class="btn btn-error flex-1"
+                    class="btn btn-error flex-1 gap-1"
                     onclick={() => disconnectDevice(device.interface)}
                     disabled={loadingMap[`disconnect-${device.interface}`]}
                   >
-                    Disconnect
+                    <Unlink2 class="w-4 h-4" /> Disconnect
                   </button>
                 {:else if device.state === 30}
                   <button
                     type="button"
-                    class="btn btn-primary flex-1"
+                    class="btn btn-primary flex-1 gap-1"
                     onclick={() => connectWithPicker(device.interface, `/wifi?iface=${device.interface}`, 'wifi')}
                     disabled={$connectingIface === device.interface}
                   >
-                    Connect
+                    <Link2 class="w-4 h-4" /> Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={() => navigate(`/wifi?iface=${device.interface}`)}>Manage</button>
+                <button type="button" class="btn btn-ghost gap-1" onclick={() => navigate(`/wifi?iface=${device.interface}`)}><Settings class="w-4 h-4" /> Manage</button>
               </div>
             </div>
           </div>
@@ -380,25 +380,25 @@
                 {#if device.state === 100}
                   <button
                     type="button"
-                    class="btn btn-error flex-1"
+                    class="btn btn-error flex-1 gap-1"
                     onclick={() => disconnectDevice(device.interface)}
                     disabled={loadingMap[`disconnect-${device.interface}`]}
                   >
-                    Disconnect
+                    <Unlink2 class="w-4 h-4" /> Disconnect
                   </button>
                 {:else if device.state === 30}
                   <button
                     type="button"
-                    class="btn btn-primary flex-1"
+                    class="btn btn-primary flex-1 gap-1"
                     onclick={() => connectWithPicker(device.interface, '/connections', 'modem')}
                     disabled={$connectingIface === device.interface}
                   >
-                    Connect
+                    <Link2 class="w-4 h-4" /> Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={() => navigate('/connections')}>Manage</button>
+                <button type="button" class="btn btn-ghost gap-1" onclick={() => navigate('/connections')}><Settings class="w-4 h-4" /> Manage</button>
               </div>
             </div>
           </div>
