@@ -119,14 +119,28 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 		if len(sig.Body) > 1 {
 			reason, _ = sig.Body[1].(uint32)
 		}
-		s.hub.Publish("device_state_changed", map[string]interface{}{
+		payload := map[string]interface{}{
 			"path":        string(sig.Path),
 			"iface":       s.ifaceOfSignal(sig.Path),
 			"state":       state,
 			"state_name":  nm.DeviceStateName(state),
 			"reason":      reason,
 			"reason_name": nm.ReasonName(reason),
-		})
+		}
+		// IP configuration is only settled once the device reaches a terminal
+		// state (addresses assigned on Activated, gone on Disconnected/
+		// Unavailable/Unmanaged/Failed). Attach the full device snapshot there
+		// so the UI can refresh or clear IPs without an extra round-trip that
+		// would race the async activation.
+		if isTerminalDeviceState(state) {
+			dev, dErr := s.nm.DeviceFromPath(sig.Path)
+			if dErr == nil {
+				if info, iErr := dev.Info(); iErr == nil {
+					payload["device"] = info
+				}
+			}
+		}
+		s.hub.Publish("device_state_changed", payload)
 
 	case nm.WirelessIf + ".ScanDone":
 		s.hub.Publish("scan_done", map[string]interface{}{
@@ -150,6 +164,19 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 			"path":  sig.Path,
 		})
 	}
+}
+
+// isTerminalDeviceState reports whether the device settled into a state whose
+// IP configuration is final: addresses are assigned (Activated) or gone
+// (Disconnected, Unavailable, Unmanaged, Failed). Transient states (Prepare
+// through Secondaries, Deactivating) are skipped.
+func isTerminalDeviceState(state uint32) bool {
+	switch state {
+	case nm.DeviceStateActivated, nm.DeviceStateDisconnected,
+		nm.DeviceStateUnavailable, nm.DeviceStateUnmanaged, nm.DeviceStateFailed:
+		return true
+	}
+	return false
 }
 
 // ifaceOfSignal best-effort resolves the interface name for a device path.

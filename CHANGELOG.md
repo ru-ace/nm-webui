@@ -90,6 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before the query string was read, so a card's **Manage** shortcut (and any
   deep link) landed on the wrong interface when the device list was already
   loaded
+- Devices/Dashboard cards kept a stale IP address, gateway, DNS and
+  active-connection until a page reload: connect/disconnect raced
+  NetworkManager, and the `device_state_changed` SSE event only carried state.
+  It now carries a full device snapshot at terminal states, which the UI
+  merges (with a targeted `/devices/{iface}` refresh as a fallback)
 
 ## [1.1.1] - 2026-09-23
 

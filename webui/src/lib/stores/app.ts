@@ -101,6 +101,20 @@ export async function loadDevices() {
   }
 }
 
+// refreshDevice re-fetches a single device and merges the fresh snapshot into
+// the store, keeping its list position. Used as a fallback when the SSE
+// device_state_changed event lacks the full `device` payload (older backend
+// or a failed snapshot) so IP/gateway/DNS still settle without a page reload.
+export async function refreshDevice(iface: string) {
+  if (!iface || !get(devices).some((d) => d.interface === iface)) return;
+  try {
+    const dev = await api.devices.get(iface);
+    devices.update(($d) => $d.map((d) => (d.interface === iface ? { ...d, ...dev } : d)));
+  } catch (e) {
+    console.error(`Failed to refresh device ${iface}:`, e);
+  }
+}
+
 export async function loadWifiNetworks(iface: string) {
   try {
     setLoading(`wifi-${iface}`, true);
@@ -385,6 +399,15 @@ function isCurrentWifiIface(iface: string) {
   return get(devices).some((d) => d.wireless && d.interface === iface);
 }
 
+// Terminal device states where the IP configuration is settled: activated
+// (addresses assigned) or disconnected/unavailable/unmanaged/failed (addresses
+// cleared). Transient states (Configuring, Getting IP, ...) are skipped.
+const TERMINAL_DEVICE_STATES = new Set([100, 30, 20, 10, 120]);
+
+function isTerminalDeviceState(state: number) {
+  return TERMINAL_DEVICE_STATES.has(state);
+}
+
 function handleEvent(type: string, data: any) {
   switch (type) {
     case 'connectivity_changed':
@@ -394,6 +417,18 @@ function handleEvent(type: string, data: any) {
     case 'device_state_changed':
       devices.update(($d) => $d.map(d => d.interface === data.iface ? { ...d, state: data.state, state_name: data.state_name } : d));
       loadSystemStatus();
+      // Terminal states are when NM has finally assigned (or cleared) the IP
+      // configuration. The eager loadDevices() in the connect/disconnect flows
+      // races the async activation, so merge the settled snapshot carried by
+      // the event, falling back to a targeted fetch when it's absent.
+      if (isTerminalDeviceState(data.state)) {
+        const dev = data.device;
+        if (dev?.interface) {
+          devices.update(($d) => $d.map((d) => (d.interface === dev.interface ? { ...d, ...dev } : d)));
+        } else {
+          void refreshDevice(data.iface);
+        }
+      }
       break;
     case 'scan_done':
       // Ignore stale events for interfaces that no longer exist (e.g. after
