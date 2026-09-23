@@ -252,7 +252,37 @@ export const CAPTIVE_PORTAL = {
   status: 'fresh',
   checked_at: new Date().toISOString(),
   nm_connectivity: 4,
-  nm_connectivity_text: 'full',
+  nm_connectivity_text: 'online',
+};
+
+// Portal-mode variants — served when the mock is switched to `portal` mode
+// (POST /__mock/mode). Mirrors what the real backend reports: only partial
+// connectivity, no external IP, and the probe-resolved sign-in page URL.
+export const SYSTEM_STATUS_PORTAL = {
+  ...SYSTEM_STATUS,
+  connectivity: 'portal',
+  connectivity_code: 2,
+  external_ip: null,
+  external_ip_status: 'unavailable',
+  external_ip_checked_at: new Date().toISOString(),
+  external_ip_country: null,
+  external_ip_city: null,
+  external_ip_region: null,
+  external_ip_isp: null,
+  external_ip_org: null,
+  external_ip_asn: null,
+  external_ip_timezone: null,
+};
+
+export const CAPTIVE_PORTAL_PORTAL = {
+  state: 'portal',
+  portal_url: 'http://10.0.0.1/login',
+  origin: 'http://10.0.0.1',
+  probe_url: 'http://captive.apple.com/hotspot-detect.html',
+  status: 'fresh',
+  checked_at: new Date().toISOString(),
+  nm_connectivity: 2,
+  nm_connectivity_text: 'portal',
 };
 
 // Fake hotel captive-portal landing page returned by /api/v1/captive-portal/proxy.

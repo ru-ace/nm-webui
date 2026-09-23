@@ -49,6 +49,16 @@ const states = [
     },
   },
   {
+    id: 'dashboard-portal', // mock in portal mode: banner + warning badge
+    mode: 'portal',
+    run: async (page) => {
+      await page.goto(`${base}/`, { waitUntil: 'load' });
+      await page.getByText('Captive portal detected').waitFor();
+      await page.waitForTimeout(600);
+      return { fullPage: true };
+    },
+  },
+  {
     id: 'wifi',
     run: async (page) => {
       await page.goto(`${base}/wifi?iface=wlan0`, { waitUntil: 'load' });
@@ -161,6 +171,22 @@ let base = 'http://127.0.0.1:18080'; // patched in by captureAll via closure? se
 const fileFor = (state, theme, vp) =>
   `${state}${theme === 'dark' ? '-dark' : ''}${vp === 'mobile' ? '-mobile' : ''}.png`;
 
+// setMockMode switches the mock backend between serving 'online' and 'portal'
+// data (see mock-server.mjs). Every state declares the data set it needs via
+// `mode`; states without one default to 'online' so they never inherit the
+// portal banner from an earlier capture.
+async function setMockMode(mode) {
+  const res = await fetch(`${base}/__mock/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) {
+    throw new Error(`[screenshots] failed to set mock mode ${mode}: HTTP ${res.status}`);
+  }
+  return mode;
+}
+
 export async function captureAll({ baseUrl, outDir }) {
   base = baseUrl;
   mkdirSync(outDir, { recursive: true });
@@ -179,6 +205,7 @@ export async function captureAll({ baseUrl, outDir }) {
         for (const state of states) {
           if (onlyStates && !onlyStates.includes(state.id)) continue;
           if (state.id === 'nav-open' && vp === 'desktop') continue; // mobile-only state
+          await setMockMode(state.mode || 'online');
           const { fullPage } = await state.run(page);
           const file = `${outDir}/${fileFor(state.id, theme, vp)}`;
           await page.screenshot({ path: file, fullPage });

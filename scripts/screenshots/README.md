@@ -28,7 +28,7 @@ Afterwards review the visual diff with `git status` / `git diff --stat docs/`.
 | File | Purpose |
 |---|---|
 | `run.mjs` | orchestrator: build-check → mock → capture → link check |
-| `mock-server.mjs` | `node:http` backend: serves the built SPA + `/api/v1/*` + SSE + fake portal page |
+| `mock-server.mjs` | `node:http` backend: serves the built SPA + `/api/v1/*` + SSE + fake portal page; `POST /__mock/mode` switches between `online` and `portal` data sets |
 | `mock-data.mjs` | the test dataset — **edit this to change what screenshots show** |
 | `capture.mjs` | Playwright capture: states × themes × viewports |
 | `check-links.mjs` | verifies every `screenshots/…` path in `docs/SCREENSHOTS.md` resolves |
@@ -36,7 +36,7 @@ Afterwards review the visual diff with `git status` / `git diff --stat docs/`.
 
 ## Captured states
 
-`dashboard` · `wifi` · `wifi-join` (password modal) · `portal` (mini-browser with
+`dashboard` · `dashboard-portal` (captive-portal banner on the dashboard) · `wifi` · `wifi-join` (password modal) · `portal` (mini-browser with
 a fake hotel sign-in page) · `portal-open-tab` (risk-acknowledgement dialog for
 opening a page outside the sandbox) · `devices` · `profiles` · `profile-new`
 (profile dialog) · `power` · `power-confirm` (confirmation dialog) · `nav-open`

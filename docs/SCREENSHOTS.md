@@ -14,6 +14,7 @@ data (see [`docs/screenshots/`](screenshots/) for the raw files).
 | Section | State | Desktop | Mobile |
 |---|---|---|---|
 | [Dashboard](#dashboard) | overview | [`dashboard.png`](screenshots/dashboard.png) | [`dashboard-mobile.png`](screenshots/dashboard-mobile.png) |
+| [Dashboard — Captive portal](#dashboard--captive-portal) | portal detected banner | [`dashboard-portal.png`](screenshots/dashboard-portal.png) | [`dashboard-portal-mobile.png`](screenshots/dashboard-portal-mobile.png) |
 | [Wi-Fi](#wi-fi) | scanned networks | [`wifi.png`](screenshots/wifi.png) | [`wifi-mobile.png`](screenshots/wifi-mobile.png) |
 | [Wi-Fi — Join dialog](#wi-fi--join-dialog) | password modal | [`wifi-join.png`](screenshots/wifi-join.png) | [`wifi-join-mobile.png`](screenshots/wifi-join-mobile.png) |
 | [Portal](#portal) | mini-browser | [`portal.png`](screenshots/portal.png) | [`portal-mobile.png`](screenshots/portal-mobile.png) |
@@ -43,6 +44,28 @@ Overview: connectivity badge, external IP with geo details, live device cards
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-dark-mobile.png">
     <img src="screenshots/dashboard-mobile.png" alt="Dashboard (mobile)" width="390">
+  </picture>
+</details>
+
+## Dashboard — Captive portal
+
+The same dashboard while the host network is gated by a captive portal: the
+connectivity badge switches to the warning state and an alert banner with
+**Open portal** and **Recheck** actions appears under the page header. The
+external-IP card falls back to *Unavailable* — the host has no full internet
+connectivity until sign-in completes.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-portal-dark.png">
+  <img src="screenshots/dashboard-portal.png" alt="Dashboard with captive portal" width="1280">
+</picture>
+
+<details>
+  <summary>📱 Mobile</summary>
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dashboard-portal-dark-mobile.png">
+    <img src="screenshots/dashboard-portal-mobile.png" alt="Dashboard with captive portal (mobile)" width="390">
   </picture>
 </details>
 

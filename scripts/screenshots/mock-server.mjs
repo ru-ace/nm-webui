@@ -13,11 +13,13 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   SYSTEM_STATUS,
+  SYSTEM_STATUS_PORTAL,
   DEVICES,
   WIFI_STATUS,
   WIFI_NETWORKS,
   CONNECTIONS,
   CAPTIVE_PORTAL,
+  CAPTIVE_PORTAL_PORTAL,
   PORTAL_PAGE,
 } from './mock-data.mjs';
 
@@ -44,9 +46,31 @@ const json = (res, body, status = 200) => {
 };
 
 export function startMockServer({ distDir = join(REPO_ROOT, 'internal', 'webui', 'dist'), host = '127.0.0.1', port = 0 } = {}) {
+  // Served data set: 'online' (default) or 'portal'. Screenshot captures switch
+  // it per state via POST /__mock/mode so the dashboard-portal frame shows the
+  // captive-portal banner while every other state stays online.
+  let mode = 'online';
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${host}:${port}`);
     const p = url.pathname;
+
+    // Test-only control endpoint: switch which data set is served.
+    if (p === '/__mock/mode' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      let parsed = {};
+      try { parsed = JSON.parse(body || '{}'); } catch { parsed = {}; }
+      const next = url.searchParams.get('mode') || parsed.mode;
+      if (next !== 'online' && next !== 'portal') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'mode must be online|portal' }));
+        return;
+      }
+      mode = next;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, mode }));
+      return;
+    }
 
     // SSE stream
     if (p === '/api/v1/events') {
@@ -56,7 +80,12 @@ export function startMockServer({ distDir = join(REPO_ROOT, 'internal', 'webui',
         Connection: 'keep-alive',
       });
       res.write('retry: 5000\n\n');
-      res.write(`event: connectivity_changed\ndata: ${JSON.stringify({ status: 'online', connectivity: 4 })}\n\n`);
+      // Keep the push verdict consistent with the served data so the
+      // connectivity badge and any banner agree in the captures.
+      const connectivity = mode === 'portal'
+        ? { status: 'portal', connectivity: 2 }
+        : { status: 'online', connectivity: 4 };
+      res.write(`event: connectivity_changed\ndata: ${JSON.stringify(connectivity)}\n\n`);
       const timer = setInterval(() => res.write(': keepalive\n\n'), 15000);
       req.on('close', () => clearInterval(timer));
       return;
@@ -87,11 +116,11 @@ export function startMockServer({ distDir = join(REPO_ROOT, 'internal', 'webui',
       }
 
       if (p === '/api/v1/system/features') return json(res, { power: true });
-      if (p === '/api/v1/system/status') return json(res, SYSTEM_STATUS);
+      if (p === '/api/v1/system/status') return json(res, mode === 'portal' ? SYSTEM_STATUS_PORTAL : SYSTEM_STATUS);
       if (p === '/api/v1/system/external-ip/refresh' && method === 'POST') return json(res, { status: 'ok' });
       if (p === '/api/v1/system/power' && method === 'POST') return json(res, { status: 'ok' });
-      if (p === '/api/v1/system/captive-portal') return json(res, CAPTIVE_PORTAL);
-      if (p === '/api/v1/system/captive-portal/check' && method === 'POST') return json(res, CAPTIVE_PORTAL);
+      if (p === '/api/v1/system/captive-portal') return json(res, mode === 'portal' ? CAPTIVE_PORTAL_PORTAL : CAPTIVE_PORTAL);
+      if (p === '/api/v1/system/captive-portal/check' && method === 'POST') return json(res, mode === 'portal' ? CAPTIVE_PORTAL_PORTAL : CAPTIVE_PORTAL);
 
       if (p === '/api/v1/devices' && method === 'GET') return json(res, { devices: DEVICES });
       const devMatch = p.match(/^\/api\/v1\/devices\/([^/]+)(\/(disconnect|up))?$/);
