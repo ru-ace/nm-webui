@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/html"
 )
 
 const portalHTML = `<!DOCTYPE html>
@@ -44,11 +46,14 @@ func TestRewritePortalHTML(t *testing.T) {
 	}
 	s := string(out)
 
-	for _, gone := range []string{"window.bad", "<base", "javascript:void(0)", "onerror", "onclick",
+	for _, gone := range []string{"window.bad", "javascript:void(0)", "onerror", "onclick",
 		"<iframe", "<object", "<embed", "formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\""} {
 		if strings.Contains(s, gone) {
 			t.Errorf("rewritten page still contains %q", gone)
 		}
+	}
+	if bases := canonicalBases(s); len(bases) == 0 || bases[0]["href"] != "/" {
+		t.Errorf("canonical <base href=\"/\"> not kept (got %v):\n%s", bases, s)
 	}
 
 	wantLink := `href="` + ProxyBase + `?url=http%3A%2F%2F192.168.1.1%2Flogin%3Fx%3D1"`
@@ -84,10 +89,11 @@ func TestRewritePortalHTML(t *testing.T) {
 	}
 }
 
-// TestRewritePortalHTMLAllowJS proves JS mode (sandboxed iframe): script
+// test proves JS mode (sandboxed iframe): script
 // elements, inline handlers and javascript: hrefs survive so JS-dependent
-// portals work, while <base>/<iframe>/<object>/<embed> and per-control form
-// overrides are still stripped and a telemetry snippet is injected.
+// portals work, while <base> is canonicalised and <iframe>/<object>/<embed>
+// and per-control form overrides are still stripped and a telemetry snippet
+// is injected.
 func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	out, err := RewritePortalHTML([]byte(portalHTML), portalOrigin+"/portal/index.html", true)
 	if err != nil {
@@ -95,11 +101,14 @@ func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	}
 	s := string(out)
 
-	for _, gone := range []string{"<base", "<iframe", "<object", "<embed",
+	for _, gone := range []string{"<iframe", "<object", "<embed",
 		"formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\""} {
 		if strings.Contains(s, gone) {
 			t.Errorf("rewritten page (js) still contains %q", gone)
 		}
+	}
+	if bases := canonicalBases(s); len(bases) == 0 || bases[0]["href"] != "/" {
+		t.Errorf("canonical <base href=\"/\"> not kept (js) (got %v):\n%s", bases, s)
 	}
 	for _, kept := range []string{"window.bad", "onerror", "onclick", "javascript:void(0)"} {
 		if !strings.Contains(s, kept) {
@@ -122,6 +131,35 @@ func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	}
 	if !strings.Contains(s, `name="url" value="http://192.168.1.1/submit"`) {
 		t.Errorf("GET form hidden fields missing (js):\n%s", s)
+	}
+}
+
+// TestRewritePortalBaseCanonicalised proves <base> is canonicalised, not
+// dropped: framework SPAs need an APP_BASE_HREF to bootstrap. The first
+// declared target hint survives, the raw href (which would point back at the
+// portal host) is replaced with the proxy-root-relative "/", and stray base
+// tags after the first are rewritten to the same canonical form.
+func TestRewritePortalBaseCanonicalised(t *testing.T) {
+	in := `<html><head>` +
+		`<base href="https://portal.example/login/" target="_top">` +
+		`<base href="/secondary/">` +
+		`<a href="index.html">link</a>` +
+		`</head></html>`
+	out, err := RewritePortalHTML([]byte(in), "http://192.168.1.1/portal/", true)
+	if err != nil {
+		t.Fatalf("rewrite: %v", err)
+	}
+	s := string(out)
+	bases := canonicalBases(s)
+	if len(bases) != 2 || bases[0]["href"] != "/" || bases[0]["target"] != "_top" || bases[1]["href"] != "/" {
+		t.Errorf("unexpected canonical bases %v:\n%s", bases, s)
+	}
+	if strings.Contains(s, "portal.example") || strings.Contains(s, "secondary") {
+		t.Errorf("original raw base href survived:\n%s", s)
+	}
+	wantLink := `href="` + ProxyBase + `?url=http%3A%2F%2F192.168.1.1%2Fportal%2Findex.html"`
+	if !strings.Contains(s, wantLink) {
+		t.Errorf("link not rewritten against portal base:\n%s", s)
 	}
 }
 
@@ -278,4 +316,29 @@ func TestFetchPortalRejectsBadScheme(t *testing.T) {
 
 func hostOf(srv *httptest.Server) string {
 	return strings.TrimPrefix(srv.URL, "http://")
+}
+
+// canonicalBases parses rewritten HTML and returns the attributes of every
+// <base> element in document order.
+func canonicalBases(s string) []map[string]string {
+	doc, err := html.Parse(strings.NewReader(s))
+	if err != nil {
+		return nil
+	}
+	var out []map[string]string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && strings.EqualFold(n.Data, "base") {
+			m := map[string]string{}
+			for _, a := range n.Attr {
+				m[strings.ToLower(a.Key)] = a.Val
+			}
+			out = append(out, m)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+	return out
 }

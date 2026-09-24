@@ -144,11 +144,14 @@ var (
 var skipURLPrefixes = []string{"javascript:", "mailto:", "tel:", "data:", "about:", "ws:", "wss:"}
 
 // RewritePortalHTML rewrites a portal document served by baseURL so every
-// http(s) URL resolves back through ProxyBase. <base>, <iframe>, <object> and
-// <embed> elements are always dropped (they cannot survive rewriting and would
-// load against the admin's own origin), forms get hidden url/_method fields,
-// styles and meta-refresh markers are adjusted, and srcset candidates are
-// rewritten individually.
+// http(s) URL resolves back through ProxyBase. <base> is canonicalised to
+// <base href="/"> (framework SPAs such as Angular refuse to bootstrap without
+// an APP_BASE_HREF, and the root-relative base is safe because every rewritten
+// URL is an absolute ProxyBase reference), while <iframe>, <object> and
+// <embed> are always dropped (they cannot survive rewriting and would load
+// against the admin's own origin). Forms get hidden url/_method fields, styles
+// and meta-refresh markers are adjusted, and srcset candidates are rewritten
+// individually.
 //
 // When allowJS is false, <script> elements and inline event-handler
 // attributes (on*) plus srcdoc are stripped as well — nothing executable
@@ -170,9 +173,29 @@ func RewritePortalHTML(doc []byte, baseURL string, allowJS bool) ([]byte, error)
 		if n.Type == html.ElementNode {
 			tag := strings.ToLower(n.Data)
 			switch tag {
-			case "base", "iframe", "object", "embed":
-				// Frames and plugins would load in the admin's own origin;
-				// <base> would override how relative URLs resolve.
+			case "base":
+				// Keep a canonical <base href="/"> instead of dropping the tag:
+				// Angular and other framework SPAs require <base>/APP_BASE_HREF
+				// to bootstrap ("No base href set" crash), and the canonical
+				// root-relative base is safe here because the rewriter turns
+				// every http(s) reference into an absolute ProxyBase URL that
+				// already resolves against the admin origin root. A target
+				// hint set by the portal is preserved.
+				target := ""
+				for _, a := range n.Attr {
+					if strings.EqualFold(a.Key, "target") && a.Val != "" {
+						target = a.Val
+					}
+				}
+				n.Attr = []html.Attribute{{Key: "href", Val: "/"}}
+				if target != "" {
+					n.Attr = append(n.Attr, html.Attribute{Key: "target", Val: target})
+				}
+				n.FirstChild = nil
+				n.LastChild = nil
+				return
+			case "iframe", "object", "embed":
+				// Frames and plugins would load in the admin's own origin.
 				if n.Parent != nil {
 					n.Parent.RemoveChild(n)
 				}
