@@ -37,6 +37,9 @@
             {#if conn.is_wifi && conn.ssid}
               <span class="badge badge-ghost badge-sm">"{conn.ssid}"</span>
             {/if}
+            {#if conn.is_wifi && conn.hidden}
+              <span class="badge badge-neutral badge-sm" title="Hidden network">Hidden</span>
+            {/if}
             {#if conn.is_modem && conn.apn}
               <span class="badge badge-ghost badge-sm">APN {conn.apn}</span>
             {/if}

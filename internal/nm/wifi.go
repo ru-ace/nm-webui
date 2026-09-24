@@ -1,12 +1,18 @@
 package nm
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/godbus/dbus/v5"
 )
+
+// ErrScanTimeout is returned by ScanAndWait when no ScanDone signal arrives
+// within the deadline (scan still allowed to finish, results may be stale).
+var ErrScanTimeout = errors.New("wifi scan timed out")
 
 // 802.11 access point capability / security bit constants.
 const (
@@ -63,6 +69,28 @@ func (w *Wireless) ScanDoneChan() (<-chan *dbus.Signal, func(), error) {
 		dbus.WithMatchMember("ScanDone"),
 		dbus.WithMatchObjectPath(w.path),
 	)
+}
+
+// ScanAndWait triggers an active scan and blocks until the ScanDone signal
+// fires or the timeout elapses. Callers use it to refresh scan-dependent
+// state (such as AvailableConnections) right before reading it. NetworkManager
+// coalesces scans, so if one is already running it completes it and emits
+// ScanDone; either way the results are as fresh as the driver allows.
+func (w *Wireless) ScanAndWait(timeout time.Duration) error {
+	ch, done, err := w.ScanDoneChan()
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := w.RequestScan(); err != nil {
+		return err
+	}
+	select {
+	case <-ch:
+		return nil
+	case <-time.After(timeout):
+		return ErrScanTimeout
+	}
 }
 
 // AccessPoints lists all currently known access points.
@@ -213,6 +241,7 @@ func Channel(freq uint32) uint32 {
 type APInfo struct {
 	SSID       string `json:"ssid"`
 	Saved      bool   `json:"saved"`
+	Hidden     bool   `json:"hidden,omitempty"`
 	BSSID      string `json:"bssid"`
 	Signal     int    `json:"signal"`
 	SignalPct  int    `json:"signal_pct"`

@@ -41,6 +41,7 @@ func (s *Server) handleWifiScan(w http.ResponseWriter, r *http.Request) {
 type groupedNetwork struct {
 	SSID      string      `json:"ssid"`
 	Saved     bool        `json:"saved"`
+	Hidden    bool        `json:"hidden,omitempty"`
 	Signal    int         `json:"signal"`
 	BSSID     string      `json:"bssid,omitempty"`
 	Security  string      `json:"security"`
@@ -66,7 +67,7 @@ func groupBySSID(aps []nm.APInfo, group bool) []interface{} {
 		}
 		g, ok := bySSID[ap.SSID]
 		if !ok {
-			g = &groupedNetwork{SSID: ap.SSID, Saved: ap.Saved, Security: ap.Security}
+			g = &groupedNetwork{SSID: ap.SSID, Saved: ap.Saved, Security: ap.Security, Hidden: ap.Hidden}
 			bySSID[ap.SSID] = g
 			order = append(order, ap.SSID)
 		}
@@ -74,6 +75,7 @@ func groupBySSID(aps []nm.APInfo, group bool) []interface{} {
 		if ap.Signal > g.Signal {
 			g.Signal = ap.Signal
 			g.Saved = ap.Saved
+			g.Hidden = ap.Hidden
 			g.BSSID = ap.BSSID
 			g.Security = ap.Security
 			g.Band = ap.Band
@@ -103,7 +105,7 @@ func (s *Server) handleWifiNetworks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	infos := make([]nm.APInfo, 0, len(aps))
-	saved, err := s.savedWiFiSSIDs()
+	saved, hidden, err := s.savedWiFiInfo()
 	if err != nil {
 		httpError(w, err)
 		return
@@ -114,6 +116,7 @@ func (s *Server) handleWifiNetworks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		info.Saved = saved[info.SSID]
+		info.Hidden = hidden[info.SSID]
 		infos = append(infos, info)
 	}
 	sort.Slice(infos, func(i, j int) bool { return infos[i].Signal > infos[j].Signal })
@@ -123,22 +126,30 @@ func (s *Server) handleWifiNetworks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"networks": networks})
 }
 
-func (s *Server) savedWiFiSSIDs() (map[string]bool, error) {
-	conns, err := s.nm.ListConnections()
-	if err != nil {
-		return nil, err
+// savedWiFiInfo returns two SSID-keyed maps: which SSIDs have a saved wifi
+// profile, and which of those profiles are hidden (wifi.hidden=yes). Hidden
+// profiles matter to the scan UI because NM only discovers them by probing
+// their SSID during a scan.
+func (s *Server) savedWiFiInfo() (saved map[string]bool, hidden map[string]bool, err error) {
+	conns, serr := s.nm.ListConnections()
+	if serr != nil {
+		return nil, nil, serr
 	}
-	saved := make(map[string]bool)
+	saved = make(map[string]bool)
+	hidden = make(map[string]bool)
 	for _, conn := range conns {
-		info, err := conn.Info()
-		if err != nil {
+		info, ierr := conn.Info()
+		if ierr != nil {
 			continue
 		}
 		if info.IsWiFi && info.SSID != "" {
 			saved[info.SSID] = true
+			if info.Hidden {
+				hidden[info.SSID] = true
+			}
 		}
 	}
-	return saved, nil
+	return saved, hidden, nil
 }
 
 func (s *Server) handleWifiStatus(w http.ResponseWriter, r *http.Request) {

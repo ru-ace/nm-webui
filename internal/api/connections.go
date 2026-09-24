@@ -27,6 +27,7 @@ type connRequest struct {
 	Type        string     `json:"type"`
 	SSID        string     `json:"ssid"`
 	Password    string     `json:"password"`
+	Hidden      *bool      `json:"hidden"`
 	APN         string     `json:"apn"`
 	Number      string     `json:"number"`
 	UserName    string     `json:"username"`
@@ -121,6 +122,9 @@ func (s *Server) handleConnectionsCreate(w http.ResponseWriter, r *http.Request)
 		settings["802-11-wireless"] = map[string]dbus.Variant{
 			"ssid": dbus.MakeVariant([]byte(req.SSID)),
 			"mode": dbus.MakeVariant("infrastructure"),
+		}
+		if req.Hidden != nil {
+			settings["802-11-wireless"]["hidden"] = dbus.MakeVariant(*req.Hidden)
 		}
 		if req.Password != "" {
 			settings["802-11-wireless"]["security"] = dbus.MakeVariant("802-11-wireless-security")
@@ -331,6 +335,10 @@ func (s *Server) handleConnectionsUpdate(w http.ResponseWriter, r *http.Request)
 			}
 			sec["key-mgmt"] = dbus.MakeVariant("wpa-psk")
 			sec["psk"] = dbus.MakeVariant(req.Password)
+			changed = true
+		}
+		if req.Hidden != nil {
+			wl["hidden"] = dbus.MakeVariant(*req.Hidden)
 			changed = true
 		}
 		if changed {

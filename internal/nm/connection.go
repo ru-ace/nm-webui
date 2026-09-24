@@ -245,6 +245,18 @@ func variantBool(m map[string]dbus.Variant, key string) bool {
 	return b
 }
 
+// variantBoolDefault reads a bool property returning def when the key is
+// absent (unlike variantBool, whose NM default is true — wrong for e.g.
+// wifi.hidden where the absence means "not hidden").
+func variantBoolDefault(m map[string]dbus.Variant, key string, def bool) bool {
+	v, ok := m[key]
+	if !ok {
+		return def
+	}
+	b, _ := v.Value().(bool)
+	return b
+}
+
 // StaticConfig is the parsed static (manual) address configuration.
 type StaticConfig struct {
 	Address string   `json:"address,omitempty"`
@@ -274,6 +286,10 @@ type ConnectionInfo struct {
 	Static6     *StaticConfig `json:"static6,omitempty"`
 	IsWiFi      bool          `json:"is_wifi"`
 	IsModem     bool          `json:"is_modem"`
+	// Hidden reports 802-11-wireless.hidden: the SSID is not broadcast, so
+	// NetworkManager considers the profile always available and actively
+	// probes for it during scans.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Info parses the connection settings into ConnectionInfo.
@@ -315,6 +331,7 @@ func (co *Connection) Info() (ConnectionInfo, error) {
 				info.SSID = decodeSSID(b)
 			}
 		}
+		info.Hidden = variantBoolDefault(w, "hidden", false)
 		if info.Interface == "" {
 			// A profile without interface-name is valid for any compatible device.
 			// The wireless MAC is not an interface name.

@@ -242,7 +242,12 @@
                     onclick={() => connectWithPicker(device.interface, '/connections', 'ethernet')}
                     disabled={$connectingIface === device.interface}
                   >
-                    <Link2 class="w-4 h-4" /> Connect
+                    {#if $connectingIface === device.interface}
+                      <Loader2 class="w-4 h-4 animate-spin" />
+                    {:else}
+                      <Link2 class="w-4 h-4" />
+                    {/if}
+                    Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
@@ -312,7 +317,12 @@
                     onclick={() => connectWithPicker(device.interface, `/wifi?iface=${device.interface}`, 'wifi')}
                     disabled={$connectingIface === device.interface}
                   >
-                    <Link2 class="w-4 h-4" /> Connect
+                    {#if $connectingIface === device.interface}
+                      <Loader2 class="w-4 h-4 animate-spin" />
+                    {:else}
+                      <Link2 class="w-4 h-4" />
+                    {/if}
+                    Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>
@@ -393,7 +403,12 @@
                     onclick={() => connectWithPicker(device.interface, '/connections', 'modem')}
                     disabled={$connectingIface === device.interface}
                   >
-                    <Link2 class="w-4 h-4" /> Connect
+                    {#if $connectingIface === device.interface}
+                      <Loader2 class="w-4 h-4 animate-spin" />
+                    {:else}
+                      <Link2 class="w-4 h-4" />
+                    {/if}
+                    Connect
                   </button>
                 {:else}
                   <button type="button" class="btn btn-ghost flex-1" disabled>Please wait...</button>

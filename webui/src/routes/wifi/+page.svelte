@@ -232,6 +232,9 @@
                       {#if network.saved}
                         <span class="badge badge-ghost badge-xs shrink-0">Saved</span>
                       {/if}
+                      {#if network.saved && network.hidden}
+                        <span class="badge badge-neutral badge-xs shrink-0" title="Hidden network">Hidden</span>
+                      {/if}
                       {#if network.bssids && network.bssids.length > 1}
                         <span class="badge badge-ghost badge-xs shrink-0">{network.bssids.length} APs</span>
                       {/if}

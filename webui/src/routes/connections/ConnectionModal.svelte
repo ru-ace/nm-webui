@@ -17,6 +17,7 @@
     type: 'ethernet',
     ssid: '',
     password: '',
+    hidden: false,
     apn: '',
     number: '*99#',
     username: '',
@@ -43,6 +44,7 @@
       type: normalizeType(editing.type || '', editing.type_name),
       ssid: editing.ssid || '',
       password: '',
+      hidden: !!editing.hidden,
       apn: editing.apn || '',
       number: editing.number || '*99#',
       username: editing.username || '',
@@ -62,7 +64,7 @@
       id: form.id,
       interface: form.interface,
       ...(known ? { type: form.type } : {}),
-      ...(form.type === 'wifi' ? { ssid: form.ssid, password: form.password } : {}),
+      ...(form.type === 'wifi' ? { ssid: form.ssid, password: form.password, hidden: form.hidden } : {}),
       ...(form.type === 'gsm'
         ? { apn: form.apn, number: form.number || '*99#', username: form.username, password: form.password, pin: form.pin }
         : {}),
@@ -90,7 +92,7 @@
   function close() {
     show = false;
     editing = null;
-    form = { id: '', interface: '', type: 'ethernet', ssid: '', password: '', apn: '', number: '*99#', username: '', pin: '', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
+    form = { id: '', interface: '', type: 'ethernet', ssid: '', password: '', hidden: false, apn: '', number: '*99#', username: '', pin: '', autoconnect: true, ipv4: { method: 'auto', address: '', prefix: 24, gateway: '', dns: '' }, ipv6: { method: 'auto', address: '', prefix: 64, gateway: '', dns: '' } };
     submitting = false;
   }
 
@@ -176,6 +178,12 @@
               <div>
                 <div class="label"><span class="label-text">Password (optional)</span></div>
                 <input bind:value={form.password} type="password" class="input input-bordered w-full" placeholder={editing ? 'Leave empty to keep current password' : 'Wi-Fi password'} />
+              </div>
+              <div class="col-span-1 sm:col-span-2 flex items-center gap-2 pt-1">
+                <input type="checkbox" bind:checked={form.hidden} id="hidden-network" class="checkbox checkbox-primary" />
+                <label for="hidden-network" class="label-text">
+                  Hidden network (the SSID is not broadcast)
+                </label>
               </div>
             </div>
           {/if}

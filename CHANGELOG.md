@@ -9,92 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Profiles: "Forget" now asks for confirmation (new reusable ConfirmModal used
-  in desktop and mobile card layouts)
-- Dashboard Wi-Fi cards: the **Connect** button now opens a profile picker
-  when several saved profiles apply to the interface, activates the only
-  profile immediately when exactly one applies, and falls back to a **Manage**
-  shortcut into the Wi-Fi section when none exist — backed by the new
-  `GET /api/v1/devices/{iface}/connections` endpoint (NetworkManager
-  `Device.AvailableConnections`)
-- Dashboard Ethernet cards: the **Connect** button on a disconnected wired
-  card now opens the same profile picker — activates immediately when a
-  single profile applies, lists applicable profiles when several do, and
-  falls back to the Profiles section via **Manage** when none exist
-- Dashboard Mobile Broadband cards: the **Connect** button now opens the same
-  profile picker as Wi-Fi/Ethernet (immediate activation for a single
-  applicable profile, picker for several, **Manage** shortcut to the Profiles
-  section when none exist)
+- Hidden Wi-Fi networks: the profile form gains a "hidden" option (SSID is
+  not broadcast); hidden saved networks get a "Hidden" badge in the Wi-Fi
+  table, the Connect profile picker and the Profiles list, and are treated as
+  available — NetworkManager probes their SSID during scans
+- Profiles: "Forget" now asks for confirmation (reusable ConfirmModal used in
+  desktop and mobile card layouts)
+- **Connect** on Ethernet and Mobile Broadband cards (dashboard + Devices
+  page) now activates a saved profile instead of blindly bringing the
+  interface up: NetworkManager is asked which saved profiles fit the
+  interface — the only one activates immediately, several open a profile
+  picker, none falls back to **Manage** (Profiles section). Devices-page
+  cards share the dashboard's button set, so both pages behave identically
 
 ### Changed
 
-- Profiles compact card: the Disconnect button was removed (the card is now
-  expand-only), and so was the Connect shortcut for inactive profiles, which
-  was unreachable because only active profiles carry a device
-- Profiles expanded card: the bottom action adapts to the profile state —
-  active profile shows "Disconnect", inactive profile shows "Forget" (with
-  confirmation)
-- Profile active-state sync reworked to track NetworkManager
-  `Connection.Active` `StateChanged` signals (SSE `connection_state_changed`
-  carrying the profile uuid), so cards update no matter what triggered the
-  change (this UI, nmcli, KDE, autoconnect, another tab); if the
-  active-connection object is already gone, the UI falls back to a full
-  profile reload
-- Devices page cards: the **Connect** button now shares the dashboard's
-  profile-picker flow for Wi-Fi, Ethernet and Mobile Broadband (immediate
-  activation for a single applicable profile, picker when several apply,
-  **Manage** fallback when none exist), while exotic device types
-  (bridge, vlan, tun, …) keep the plain connect; the "Wi-Fi Networks" button
-  was replaced by a unified **Manage** button — Wi-Fi cards open the Wi-Fi
-  section for the interface, everything else the Profiles section — matching
-  the dashboard cards
+- Wi-Fi **Connect** (dashboard, Wi-Fi-section and Devices cards) opens the
+  profile picker too — always, without single-profile auto-connect — because
+  for wireless devices the applicable-profile list is only correct after a
+  fresh scan; the picker opens immediately with a loading spinner while the
+  scan runs
+- Devices cards: the "Wi-Fi Networks" shortcut was replaced by a unified
+  **Manage** button (Wi-Fi section for wireless cards, Profiles for the rest)
+- Profile cards: the compact card is expand-only (its Disconnect/Connect
+  shortcuts were unreachable); the expanded card shows "Disconnect" for
+  active profiles and "Forget" (with confirmation) for inactive ones, and
+  tracks NetworkManager's active-state changes so cards update regardless of
+  what triggered the change
+- Captive portal: a successful sign-in is confirmed by an active connectivity
+  probe, so the UI reports `online` right after sign-in instead of waiting for
+  NetworkManager's periodic check; a manual recheck forces both NetworkManager's
+  check and a fresh probe
 
 ### Fixed
 
-- Dashboard/Wi-Fi/Devices **Disconnect** could silently reconnect: the button
-  used `NetworkManager.DeactivateConnection`, which leaves autoconnect enabled,
-  so a profile with `autoconnect=yes` came back up on its own moments later
-  (and a wired card briefly vanished while the device cycled states). It now
-  calls the D-Bus `Device.Disconnect` method (the same operation as
-  `nmcli device disconnect`), which pins the device to Disconnected until a
-  manual Connect
-- Profile cards could stay stale after a profile was activated or deactivated
-  outside the UI: the sync listened for the `ConnectionActivated` /
-  `ConnectionDeactivated` bus signals, which NetworkManager removed
-- Profile edits made outside the UI (e.g. via KDE or nmcli) were invisible:
-  `Settings.Connection.Updated` is now bridged to the existing
-  `connections_changed` SSE refresh, so the card shows the new name/settings
-- Default HTTP listen port changed from 8080 to 8090: updated the default
-  `listen` value in `internal/config`, the Vite dev proxy target, the
-  Makefile `dev` run target and generated config example, the packaged
-  `deploy/config.yaml`, the install script banner, and both INSTALL docs
-  (firewall rules, CLI examples, verification steps)
-- Captive portal detection: NetworkManager's `portal` verdict is now
-  re-verified by the detector probe, which shares the portal session cookie
-  jar. Right after a successful sign-in the UI reports `online` as soon as the
-  probe confirms connectivity, instead of waiting for NetworkManager's periodic
-  check to catch up; if the probe still sees the portal page, reports no
-  connectivity (or the probe itself fails), NM's `portal` verdict is kept. All
-  client-facing connectivity fields (SSE `connectivity_changed`,
-  `/system/status`, `/system/captive-portal`) now carry this effective verdict
-  consistently, as a matching `connectivity` (code) / `status` (state) pair
-- Captive portal recheck: the user-initiated recheck (`POST
-  /system/captive-portal/check`) now forces both NetworkManager's own
-  connectivity check and a fresh detector probe, then pushes the resulting
-  verdict to every connected SSE client (publishes are deduplicated, so an
-  unchanged verdict is not re-pushed); "Refresh external IP" is now gated on
-  the probe-confirmed `online` state rather than NetworkManager's raw verdict,
-  so it works immediately after a successful sign-in
-- Wi-Fi page could ignore the requested `?iface=` on in-app navigation and
-  open the first Wi-Fi interface instead: the default-interface fallback ran
-  before the query string was read, so a card's **Manage** shortcut (and any
-  deep link) landed on the wrong interface when the device list was already
-  loaded
-- Devices/Dashboard cards kept a stale IP address, gateway, DNS and
-  active-connection until a page reload: connect/disconnect raced
-  NetworkManager, and the `device_state_changed` SSE event only carried state.
-  It now carries a full device snapshot at terminal states, which the UI
-  merges (with a targeted `/devices/{iface}` refresh as a fallback)
+- The Wi-Fi Connect picker listed a random/partial subset of saved profiles:
+  NetworkManager builds the list for wireless devices from the *last scan*.
+  The picker now re-triggers the scan before reading it (in-modal spinner;
+  falls back to the cached list if the scan fails)
+- **Disconnect** could silently reconnect: it now calls `Device.Disconnect`
+  (like `nmcli device disconnect`), pinning the device to Disconnected until
+  a manual Connect
+- Profiles stayed stale when changed outside the UI (nmcli, KDE, another
+  tab): active-state changes come from `Connection.Active` `StateChanged`
+  signals, profile edits from `Settings.Connection.Updated`, both bridged to
+  the SSE refresh
+- Default HTTP listen port changed from 8080 to 8090 (config default, dev
+  proxy target, deploy package, docs)
+- The Wi-Fi page could ignore `?iface=` on in-app navigation and open the
+  first Wi-Fi interface instead
+- Devices/Dashboard cards kept a stale IP address, gateway and DNS after
+  connect/disconnect until reload: terminal device-state SSE events now carry
+  a full device snapshot (with a targeted refresh as fallback)
 
 ## [1.1.1] - 2026-09-23
 

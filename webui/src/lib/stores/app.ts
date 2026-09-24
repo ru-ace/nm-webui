@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { api, type SystemStatus, type DeviceInfo, type NetworkInfo, type ConnectionInfo, type WifiStatus, type CaptivePortalStatus, type SystemFeatures } from '$lib/api/client';
-import { showProfileModal } from './modals';
+import { showProfileModal, openWifiProfileModal } from './modals';
 
 export const systemStatus = writable<SystemStatus | null>(null);
 export const devices = writable<DeviceInfo[]>([]);
@@ -305,6 +305,12 @@ export async function connectDevice(iface: string) {
 // Connections page for wired and modem ones, where profiles are created).
 // `connectingIface` stays set while the flow runs so cards can disable their
 // Connect button.
+//
+// Wi-Fi cards take a dedicated branch: the backend refreshes the scan before
+// answering, so the modal opens immediately in a loading state and — because
+// "available" depends on that fresh scan — always lets the user pick instead
+// of auto-activating a single profile. Ethernet/modem keep the single-profile
+// shortcut (their available list is live, not scan-derived).
 export async function connectWithPicker(
   iface: string,
   manage: string,
@@ -312,6 +318,10 @@ export async function connectWithPicker(
 ) {
   connectingIface.set(iface);
   try {
+    if (kind === 'wifi') {
+      await connectWifiViaModal(iface);
+      return;
+    }
     const { connections: profiles } = await api.devices.connections(iface);
     if (profiles.length === 0) {
       await showProfileModal(iface, profiles, { manage, kind });
@@ -328,6 +338,25 @@ export async function connectWithPicker(
     showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
   } finally {
     connectingIface.set(null);
+  }
+}
+
+// connectWifiViaModal drives the dedicated Wi-Fi picker. The modal opens right
+// away with a spinner while the profile list (with a fresh scan behind it) is
+// being fetched; a fetch failure closes it and surfaces a toast.
+async function connectWifiViaModal(iface: string) {
+  const modal = openWifiProfileModal(iface);
+  try {
+    const { connections: profiles } = await api.devices.connections(iface);
+    modal.setProfiles(profiles);
+  } catch (e: any) {
+    modal.close();
+    console.error('Failed to load wifi profiles:', e);
+    showToast(`Failed to load profiles: ${e?.message || e}`, 'error');
+  }
+  const selected = await modal.promise;
+  if (selected) {
+    await activateConnection(selected.uuid);
   }
 }
 

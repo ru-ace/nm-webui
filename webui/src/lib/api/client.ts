@@ -148,6 +148,7 @@ export interface IPConfig {
 export interface NetworkInfo {
   ssid: string;
   saved: boolean;
+  hidden?: boolean;
   signal: number;
   bssid?: string;
   security: string;
@@ -188,6 +189,8 @@ export interface ConnectionInfo {
   static6: StaticConfig | null;
   is_wifi: boolean;
   is_modem?: boolean;
+  /** wifi.hidden=yes: SSID is not broadcast; always considered available. */
+  hidden?: boolean;
 }
 
 export interface StaticConfig {
@@ -204,6 +207,7 @@ export interface ConnectionRequest {
   type: string;
   ssid?: string;
   password?: string;
+  hidden?: boolean;
   apn?: string;
   number?: string;
   username?: string;

@@ -124,7 +124,12 @@
             onclick={() => connectWithPicker(device.interface, manageRoute, pickerKind)}
             disabled={$connectingIface === device.interface}
           >
-            <Link2 class="w-4 h-4" /> Connect
+            {#if $connectingIface === device.interface}
+              <Loader2 class="w-4 h-4 animate-spin" />
+            {:else}
+              <Link2 class="w-4 h-4" />
+            {/if}
+            Connect
           </button>
         {:else}
           <button
