@@ -2,6 +2,8 @@ package system
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -114,6 +116,116 @@ func TestProbePortalFallbackAfterFailures(t *testing.T) {
 	}
 	if st.State != "portal" {
 		t.Fatalf("state = %q, want portal (found on second probe)", st.State)
+	}
+}
+
+func TestProbePortalMiddlebox307(t *testing.T) {
+	// The realistic captive flow (e.g. the Yota middlebox): every plain-HTTP
+	// request answers 307 with "Location: https://portal/..." and the portal
+	// page is served on the redirect target. The follow must be classified as
+	// a portal with the detour URL as the sign-in page.
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>operator sign-in</body></html>`))
+	}))
+	defer portal.Close()
+
+	check := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Via", "1.0 middlebox")
+		http.Redirect(w, r, portal.URL+"/light?redirurl=x", http.StatusTemporaryRedirect)
+	}))
+	defer check.Close()
+
+	st, err := newTestDetector(check.URL).Probe(context.Background())
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if st.State != "portal" {
+		t.Fatalf("state = %q, want portal (middlebox 307 → sign-in page)", st.State)
+	}
+	if st.PortalURL != portal.URL+"/light?redirurl=x" {
+		t.Fatalf("portal_url = %q, want portal URL", st.PortalURL)
+	}
+}
+
+func TestProbePortalRedirectLoop(t *testing.T) {
+	// A checker that bounces the probe between two URLs forever: after the
+	// hop limit the last 3xx is classified as portal, never "none".
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	base := "http://" + ln.Addr().String()
+	go func() {
+		for {
+			c, aErr := ln.Accept()
+			if aErr != nil {
+				return
+			}
+			_, _ = fmt.Fprintf(c,
+				"HTTP/1.1 307 Temporary Redirect\r\nLocation: %s/a\r\nContent-Length: 0\r\n\r\n",
+				base)
+			_ = c.Close()
+		}
+	}()
+
+	st, err := newTestDetector(base + "/a").Probe(context.Background())
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if st.State != "portal" {
+		t.Fatalf("state = %q, want portal (redirect loop)", st.State)
+	}
+	if st.PortalURL == "" {
+		t.Fatalf("portal_url must be set for a looped portal")
+	}
+}
+
+func TestProbePortalRedirectFollowFails(t *testing.T) {
+	// The middlebox redirected the check to a portal that then refuses the
+	// connection (TLS RST, dead host). The redirect itself is portal evidence.
+	check := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://127.0.0.1:1/light", http.StatusFound)
+	}))
+	defer check.Close()
+
+	st, err := newTestDetector(check.URL).Probe(context.Background())
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if st.State != "portal" {
+		t.Fatalf("state = %q, want portal (redirect target unreachable)", st.State)
+	}
+	if want := "http://127.0.0.1:1/light"; st.PortalURL != want {
+		t.Fatalf("portal_url = %q, want %q", st.PortalURL, want)
+	}
+}
+
+func TestProbeNoneOnConnectionReset(t *testing.T) {
+	// The very first request dies without any response (RST/EOF). No redirect
+	// was ever pointed at a portal, so this must not be classified as portal.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			c, aErr := ln.Accept()
+			if aErr != nil {
+				return
+			}
+			_ = c.Close() // EOF; no response ever arrives
+		}
+	}()
+
+	st, err := newTestDetector("http://" + ln.Addr().String() + "/probe").Probe(context.Background())
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if st.State != "none" {
+		t.Fatalf("state = %q, want none (RST/EOF is no portal evidence)", st.State)
 	}
 }
 

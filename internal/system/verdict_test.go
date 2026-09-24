@@ -1,11 +1,17 @@
 package system
 
 import (
-	"context"
 	"errors"
 	"testing"
 )
 
+// TestResolveEffective pinpoints the probe-first contract:
+//   - the probe is the only source of truth for "portal"/"online" (it is the
+//     side that actually walks the check endpoints);
+//   - NM survives only as a link-level fallback ("limited"/"none"/"offline"/
+//     "unknown"/online) when the probe proved nothing;
+//   - NM's own "portal" verdict is never forwarded — without probe agreement
+//     it degrades to "unknown".
 func TestResolveEffective(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -14,16 +20,27 @@ func TestResolveEffective(t *testing.T) {
 		probeErr error
 		want     string
 	}{
-		{"portal + probe online", "portal", PortalState{State: "online"}, nil, "online"},
-		{"portal + probe portal", "portal", PortalState{State: "portal"}, nil, "portal"},
-		{"portal + probe none", "portal", PortalState{State: "none"}, nil, "portal"},
-		{"portal + probe unknown", "portal", PortalState{State: "unknown"}, nil, "portal"},
-		{"portal + probe error", "portal", PortalState{}, errors.New("boom"), "portal"},
-		{"online passthrough", "online", PortalState{State: "portal"}, nil, "online"},
-		{"limited passthrough", "limited", PortalState{State: "online"}, nil, "limited"},
-		{"none passthrough", "none", PortalState{State: "online"}, nil, "none"},
-		{"offline passthrough", "offline", PortalState{State: "portal"}, nil, "offline"},
-		{"unknown passthrough", "unknown", PortalState{State: "portal"}, nil, "unknown"},
+		// Probe is authoritative for portal and online, no matter what NM says.
+		{"nm portal + probe portal", "portal", PortalState{State: "portal"}, nil, "portal"},
+		{"nm portal + probe online", "portal", PortalState{State: "online"}, nil, "online"},
+		{"nm online + probe portal", "online", PortalState{State: "portal"}, nil, "portal"},
+		{"nm full + probe portal", "online", PortalState{State: "portal"}, nil, "portal"},
+		{"nm full + probe online", "online", PortalState{State: "online"}, nil, "online"},
+		{"nm limited + probe online", "limited", PortalState{State: "online"}, nil, "online"},
+		{"nm none + probe online", "none", PortalState{State: "online"}, nil, "online"},
+		{"nm offline + probe portal", "offline", PortalState{State: "portal"}, nil, "portal"},
+
+		// Probe proved nothing (no portal found, no online marker): fall back
+		// to NM's link-level state. NM "portal" degrades to unknown.
+		{"nm limited + probe none", "limited", PortalState{State: "none"}, nil, "limited"},
+		{"nm online + probe none", "online", PortalState{State: "none"}, nil, "online"},
+		{"nm offline + probe none", "offline", PortalState{State: "none"}, nil, "offline"},
+		{"nm unknown + probe none", "unknown", PortalState{State: "none"}, nil, "unknown"},
+		{"nm portal + probe none", "portal", PortalState{State: "none"}, nil, "unknown"},
+		{"nm portal + probe unknown", "portal", PortalState{State: "unknown"}, nil, "unknown"},
+		{"nm portal + probe error", "portal", PortalState{}, errors.New("boom"), "unknown"},
+		{"nm unknown + probe error", "unknown", PortalState{}, errors.New("boom"), "unknown"},
+		{"nm offline + probe error", "offline", PortalState{}, errors.New("boom"), "offline"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -32,71 +49,5 @@ func TestResolveEffective(t *testing.T) {
 					tc.nm, tc.pc, tc.probeErr, got, tc.want)
 			}
 		})
-	}
-}
-
-func TestVerdictLatcherPortalFlipsOnProbe(t *testing.T) {
-	// NM says portal while the probe still sees the portal page; once the
-	// session cookie appears the probe reports online and the next NM signal
-	// flips the advertised verdict.
-	results := []PortalState{{State: "portal"}, {State: "online"}}
-	i := 0
-	l := NewVerdictLatcher(func(ctx context.Context) (PortalState, error) {
-		r := results[i]
-		i++
-		return r, nil
-	})
-
-	state, changed := l.HandleNM(context.Background(), "portal")
-	if state != "portal" || !changed {
-		t.Fatalf("first signal: state=%q changed=%v, want portal/true", state, changed)
-	}
-	state, changed = l.HandleNM(context.Background(), "portal")
-	if state != "online" || !changed {
-		t.Fatalf("second signal: state=%q changed=%v, want online/true", state, changed)
-	}
-}
-
-func TestVerdictLatcherNMPortalIgnoredWhileProbeOnline(t *testing.T) {
-	// A repeated NM "portal" signal while the probe says online must not flip
-	// the advertised verdict back to portal, nor re-push.
-	l := NewVerdictLatcher(func(ctx context.Context) (PortalState, error) {
-		return PortalState{State: "online"}, nil
-	})
-
-	if state, changed := l.HandleNM(context.Background(), "portal"); state != "online" || !changed {
-		t.Fatalf("first signal: state=%q changed=%v, want online/true", state, changed)
-	}
-	if state, changed := l.HandleNM(context.Background(), "portal"); state != "online" || changed {
-		t.Fatalf("second signal: state=%q changed=%v, want online/false", state, changed)
-	}
-}
-
-func TestVerdictLatcherDedup(t *testing.T) {
-	l := NewVerdictLatcher(func(ctx context.Context) (PortalState, error) {
-		return PortalState{State: "online"}, nil
-	})
-
-	if state, changed := l.HandleNM(context.Background(), "portal"); state != "online" || !changed {
-		t.Fatalf("first: state=%q changed=%v, want online/true", state, changed)
-	}
-	if _, changed := l.Recheck(context.Background(), "portal"); changed {
-		t.Fatalf("recheck with an identical verdict must not re-push (changed=%v)", changed)
-	}
-}
-
-func TestVerdictLatcherPassthrough(t *testing.T) {
-	l := NewVerdictLatcher(func(ctx context.Context) (PortalState, error) {
-		return PortalState{State: "online"}, nil
-	})
-
-	if state, changed := l.HandleNM(context.Background(), "limited"); state != "limited" || !changed {
-		t.Fatalf("limited: state=%q changed=%v, want limited/true", state, changed)
-	}
-	if state, changed := l.Recheck(context.Background(), "online"); state != "online" || !changed {
-		t.Fatalf("online: state=%q changed=%v, want online/true", state, changed)
-	}
-	if state, changed := l.Recheck(context.Background(), "online"); state != "online" || changed {
-		t.Fatalf("online dedup: state=%q changed=%v, want online/false", state, changed)
 	}
 }

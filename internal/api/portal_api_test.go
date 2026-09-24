@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/ru-ace/nm-webui/internal/events"
 	"github.com/ru-ace/nm-webui/internal/system"
 )
 
@@ -153,5 +155,81 @@ func TestPortalProxyPostMissingURL(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "missing url parameter") {
 		t.Fatalf("unexpected error body: %s", body)
+	}
+}
+
+// newMonitorTestServer builds a server with a PortalMonitor and only the
+// captive-portal status routes, so the endpoints can be exercised over HTTP
+// without NetworkManager/D-Bus.
+func newMonitorTestServer(t *testing.T, probe system.ProbeFn, nmState func() string) *httptest.Server {
+	t.Helper()
+	hub := events.NewHub(50)
+	mon := NewPortalMonitor(probe, nmState, nil, hub, time.Hour, time.Second)
+	s := &Server{monitor: mon}
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/system/captive-portal", s.handleCaptivePortalStatus)
+		r.Post("/system/captive-portal/check", s.handleCaptivePortalCheck)
+	})
+	return httptest.NewServer(r)
+}
+
+func TestCaptivePortalStatusServesMonitorPayload(t *testing.T) {
+	var calls int
+	srv := newMonitorTestServer(t, func(ctx context.Context) (system.PortalState, error) {
+		calls++
+		return system.PortalState{State: "portal", PortalURL: "http://10.0.0.1/login"}, nil
+	}, func() string { return "online" })
+	defer srv.Close()
+
+	// Prime the monitor (as a real boot would via Start or the Recheck
+	// button), then the GET must serve the remembered payload.
+	if _, err := http.Post(srv.URL+"/api/v1/system/captive-portal/check", "application/json", nil); err != nil {
+		t.Fatalf("check post: %v", err)
+	}
+
+	resp, err := http.Get(srv.URL + "/api/v1/system/captive-portal")
+	if err != nil {
+		t.Fatalf("status get: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, body: %s", resp.StatusCode, body)
+	}
+	// Probe-first: NM would say "online", but the payload must expose portal.
+	if !strings.Contains(string(body), `"state":"portal"`) {
+		t.Fatalf("status does not carry probe-first portal state: %s", body)
+	}
+	if !strings.Contains(string(body), `"nm_connectivity_text":"online"`) {
+		t.Fatalf("status lost the NM informational field: %s", body)
+	}
+	if calls == 0 {
+		t.Fatal("probe was never forced")
+	}
+}
+
+func TestCaptivePortalCheckForcesProbe(t *testing.T) {
+	var calls int
+	srv := newMonitorTestServer(t, func(ctx context.Context) (system.PortalState, error) {
+		calls++
+		return system.PortalState{State: "online"}, nil
+	}, func() string { return "limited" })
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/v1/system/captive-portal/check", "application/json", nil)
+	if err != nil {
+		t.Fatalf("check post: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("check status = %d, body: %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(string(body), `"state":"online"`) {
+		t.Fatalf("check response does not expose probe-first online: %s", body)
+	}
+	if calls == 0 {
+		t.Fatal("check did not force a probe")
 	}
 }

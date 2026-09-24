@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Captive-portal detection is now fully self-owned and probe-driven:
+  NetworkManager verdicts are no longer used for portal detection — it stays
+  only as a link-level fallback and a recheck trigger. A background monitor
+  probes every `portal-check-interval` seconds (default 30, configurable) and
+  pushes results over SSE (`captive_portal_changed`), remembering the latest
+  verdict for new clients
+- Classification hardening: middlebox 307 redirects and redirect loops now
+  count as portal; `online` is only claimed on a genuine success marker
+- The portal Recheck button forces a probe through the monitor (result pushed
+  via SSE); probe URLs stay HTTP-only
+
 ## [1.2.0] - 2026-09-24
 
 ### Added

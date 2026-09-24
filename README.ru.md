@@ -47,8 +47,28 @@ captive portal, веб-интерфейс обнаруживает его опр
 (`captive.apple.com`, `detectportal.firefox.com`) и предлагает страницу
 **Portal** — мини-браузер внутри SPA — для входа на стороне хоста:
 
-- Диагностика объединяет вердикт NetworkManager и результат опроса; URL
-  страницы входа берётся из опроса.
+- Определение **полностью самостоятельное и probe-driven**. Вердикт
+  NetworkManager для детекции портала вообще не используется: на тревел-
+  роутерах аплинк (4G-модем) часто находится вне NM, чья проверка
+  connectivity может вообще не идти через него, либо NM проверяет HTTPS-
+  эндпоинт, который captive portal пропускает. Судья — только опрос: он
+  ходит по проверочным эндпоинтам с самого хоста, `online` объявляет
+  только по success-маркеру, `portal` — только по реальной странице
+  перехвата/входа.
+- Фоновый монитор пере-проверяет каждые `portal-check-interval` секунд
+  (по умолчанию 30) и пушит результат по SSE (`captive_portal_changed`) и
+  эффективную connectivity (`connectivity_changed`). Последний результат
+  запоминается: свежеподключившиеся SSE-клиенты и эндпоинты статуса
+  (`GET /system/status`, `GET /system/captive-portal`) отдают его из памяти
+  без сетевого запроса. Изменения соединений (подключился/отключился
+  wifi/eth/4G, добавлен/удалён девайс, переходы менеджера, сигналы
+  connectivity от NM) сразу запускают внеочередную проверку.
+- URL страницы входа берётся из опроса. Редиректы следуются с небольшим
+  лимитом хопов: переброс на plain-HTTP middlebox (например, 307
+  `Via: middlebox` на `https://portal/…`) и редирект-петли классифицируются
+  как portal, а `online` требует настоящий success-маркер — операторы,
+  перехватывающие plain HTTP (часть третьестороннего HTTPS пропускают),
+  больше не прячут портал за фальшивым вердиктом NM.
 - Документ портала отрисовывается в песочнице `<iframe>`, чей `src` всегда
   указывает на прокси-эндпоинт (`/api/v1/captive-portal/proxy?url=…`), а не
   на хост портала напрямую, поэтому hostname портала резолвит только
@@ -78,12 +98,16 @@ captive portal, веб-интерфейс обнаруживает его опр
 ```yaml
 # config.yaml
 portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+# секунды между фоновыми проверками captive portal (по умолчанию 30)
+portal-check-interval: 30
 ```
 
 ```bash
 # CLI / env
-nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html" \
+  --portal-check-interval 30
 export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+export NM_WEBUI_PORTAL_CHECK_INTERVAL="30"
 ```
 
 Чтобы проксировать страницы **без** JavaScript, задайте `--portal-allow-js=false`
@@ -164,15 +188,19 @@ rate limit как у админского логина) до выполнени�
 | PUT | `/connections/{uuid}` | Обновить профиль |
 | POST | `/connections/{uuid}/up` | Активировать профиль |
 | POST | `/connections/{uuid}/down` | Деактивировать профиль |
-| GET | `/system/captive-portal` | Статус обнаружения captive portal |
-| POST | `/system/captive-portal/check` | Принудительная перепроверка connectivity/портала |
+| GET | `/system/captive-portal` | Статус обнаружения captive portal (из последнего результата монитора) |
+| POST | `/system/captive-portal/check` | Принудительный опрос портала (результат уходит по SSE) |
 | GET | `/captive-portal/proxy?url=…` | Загрузка (GET) URL через прокси портала |
 | POST | `/captive-portal/proxy` | Отправка формы портала через прокси (`url`, `_method`, поля) |
 | GET | `/events` | Поток Server-Sent Events |
 
 ### SSE-события
 
-- `connectivity_changed` — статус доступа в интернет
+- `connectivity_changed` — эффективный статус connectivity (probe-first; от NM
+  только линковый fallback)
+- `captive_portal_changed` — полный payload портала (state, `portal_url`,
+  origin, поля NM connectivity); шлётся при изменении и как последнее
+  значение каждому новому клиенту
 - `device_state_changed` — состояние линка/подключения устройства
 - `devices_changed` — сетевое устройство добавлено или удалено
 - `scan_done` — сканирование Wi-Fi завершено
@@ -184,9 +212,10 @@ rate limit как у админского логина) до выполнени�
 ### Поведение внешнего IP
 
 Публичный IP определяется HTTPS-запросом к `api64.ipify.org` и кэшируется на
-пять минут. Кэш используется только пока NetworkManager сообщает
-`online`-connectivity. Если connectivity не `online`, API возвращает
-`external_ip: null` и инвалидирует кэш.
+пять минут. Кэш используется только пока эффективная connectivity равна
+`online` (подтверждена опросом; см. `system.ResolveEffective`). Если
+connectivity не `online`, API возвращает `external_ip: null` и инвалидирует
+кэш.
 
 `GET /system/status` содержит:
 

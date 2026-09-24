@@ -36,6 +36,17 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
+	// Deliver the monitor's current portal verdict as a last-value event with
+	// no id: the hub ring may have evicted an old captive_portal_changed (or
+	// the client connected after the last publish), and the id-less current
+	// value must not disturb Last-Event-ID reconnect semantics.
+	if s.monitor != nil {
+		if p := s.monitor.Payload(); p != nil {
+			writeEvent(w, events.Event{Type: "captive_portal_changed", Data: p})
+			flusher.Flush()
+		}
+	}
+
 	heartbeat := time.NewTicker(20 * time.Second)
 	defer heartbeat.Stop()
 
@@ -65,5 +76,11 @@ func writeEvent(w http.ResponseWriter, ev events.Event) {
 	if err != nil {
 		data = []byte("{}")
 	}
-	_, _ = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", ev.ID, ev.Type, data)
+	if ev.ID > 0 {
+		_, _ = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", ev.ID, ev.Type, data)
+		return
+	}
+	// id-less "current value" events must not advance the client's
+	// Last-Event-ID.
+	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, data)
 }

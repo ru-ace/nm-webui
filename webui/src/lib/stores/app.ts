@@ -376,6 +376,7 @@ export function initEventSource() {
 
   const eventTypes = [
     'connectivity_changed',
+    'captive_portal_changed',
     'device_state_changed',
     'scan_done',
     'wifi_networks_changed',
@@ -413,9 +414,13 @@ export function initEventSource() {
   };
 
   // Refresh on (re)connect: a dropped stream may have missed events outside
-  // the hub replay window, leaving profile cards stale.
+  // the hub replay window, leaving profile cards stale. Connectivity and the
+  // portal verdict are re-fetched too — the monitor keeps serving its last
+  // result from memory, so this is cheap.
   es.onopen = () => {
     loadConnections();
+    loadSystemStatus();
+    loadCaptivePortal();
   };
 
   return es;
@@ -442,6 +447,12 @@ function handleEvent(type: string, data: any) {
     case 'connectivity_changed':
       systemStatus.update(($s) => $s ? { ...$s, connectivity: data.status, connectivity_code: data.connectivity } : null);
       void loadCaptivePortal();
+      break;
+    case 'captive_portal_changed':
+      // Full portal payload (state, portal_url, origin, nm_connectivity...)
+      // pushed by the background monitor; the last value also lands on every
+      // SSE (re)connect, so a fresh tab starts with the current verdict.
+      captivePortal.set(data);
       break;
     case 'device_state_changed':
       devices.update(($d) => $d.map(d => d.interface === data.iface ? { ...d, state: data.state, state_name: data.state_name } : d));

@@ -21,9 +21,10 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 		gateway = g
 	}
 
-	// The advertised verdict re-verifies NM's "portal" with our probe, so after
-	// a successful sign-in the status flips to online as soon as the session is
-	// seen — NM's periodic check may lag behind.
+	// The advertised verdict is resolved probe-first (see system.ResolveEffective):
+	// "portal"/"online" come only from our own check, NM provides the link-level
+	// fallback. After a successful sign-in the status flips to online as soon as
+	// the shared session is seen by the probe — NM's periodic check may lag.
 	state := s.resolvedState(r.Context(), statusText(st.Connectivity))
 
 	external := system.ExternalIP{Status: "unavailable", CheckedAt: time.Now()}

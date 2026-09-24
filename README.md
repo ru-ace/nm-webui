@@ -47,8 +47,27 @@ portal, the web UI detects it by probing well-known check endpoints
 (`captive.apple.com`, `detectportal.firefox.com`) and offers a **Portal** page
 (a mini-browser in the SPA) to sign in on behalf of the host:
 
-- Detection combines the NetworkManager connectivity verdict with the probe
-  result; the sign-in page URL is taken from the probe.
+- Detection is **fully self-owned and probe-driven**. NetworkManager is not
+  consulted for portal verdicts at all: on travel routers the uplink (a 4G
+  modem) is often outside NM, whose connectivity check may never run against
+  it, or NM may check an HTTPS endpoint that a captive portal lets through.
+  The probe is the judge — it walks the check endpoints from the host itself,
+  claims `online` only on a success marker and `portal` only on a real
+  intercept/login page.
+- A background monitor re-probes every `portal-check-interval` seconds
+  (default 30) and pushes the result over SSE (`captive_portal_changed`) plus
+  the effective connectivity (`connectivity_changed`). The last result is
+  remembered: freshly connected SSE clients and the status endpoints
+  (`GET /system/status`, `GET /system/captive-portal`) serve it from memory
+  with no network access per request. Connections changes (wifi/eth/4G
+  connect, disconnect, devices added/removed, manager transitions, NM
+  connectivity signals) trigger an immediate re-check.
+- The sign-in page URL is taken from the probe. Redirects are followed with a
+  small hop budget: a plain-HTTP middlebox bounce (e.g. the 307
+  `Via: middlebox` redirect to `https://portal/…`) and redirect loops are
+  classified as portal, while `online` requires a genuine success marker —
+  operators that intercept plain HTTP while letting some HTTPS through no
+  longer hide the portal behind a fake NM verdict.
 - The portal document is rendered in a sandboxed `<iframe>` whose `src` always
   points at the proxy endpoint (`/api/v1/captive-portal/proxy?url=…`) — never
   at the portal host directly — so portal hostnames are resolved only by the
@@ -79,12 +98,16 @@ Probe URLs are configurable:
 ```yaml
 # config.yaml
 portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+# seconds between background captive-portal checks (default 30)
+portal-check-interval: 30
 ```
 
 ```bash
 # CLI / env
-nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html" \
+  --portal-check-interval 30
 export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
+export NM_WEBUI_PORTAL_CHECK_INTERVAL="30"
 ```
 
 To run proxied pages **without** JavaScript, set `--portal-allow-js=false`
@@ -167,15 +190,19 @@ Base path: `/api/v1`
 | PUT | `/connections/{uuid}` | Update profile |
 | POST | `/connections/{uuid}/up` | Activate profile |
 | POST | `/connections/{uuid}/down` | Deactivate profile |
-| GET | `/system/captive-portal` | Captive-portal detection status |
-| POST | `/system/captive-portal/check` | Force a connectivity/portal re-check |
+| GET | `/system/captive-portal` | Captive-portal detection status (served from the monitor's last result) |
+| POST | `/system/captive-portal/check` | Force a portal re-probe (result pushed over SSE) |
 | GET | `/captive-portal/proxy?url=…` | Fetch (GET) a URL through the portal proxy |
 | POST | `/captive-portal/proxy` | Submit a portal form through the proxy (`url`, `_method`, fields) |
 | GET | `/events` | SSE event stream |
 
 ### SSE Events
 
-- `connectivity_changed` - Internet connectivity status
+- `connectivity_changed` - Effective connectivity status (probe-first; NM is
+  only a link-level fallback)
+- `captive_portal_changed` - Full captive-portal payload (state, `portal_url`,
+  origin, NM connectivity fields); delivered on change and as the latest value
+  to every newly connected client
 - `device_state_changed` - Device link/connection state
 - `devices_changed` - Network device added or removed
 - `scan_done` - Wi-Fi scan completed
@@ -186,7 +213,7 @@ Base path: `/api/v1`
 
 ### External IP Behavior
 
-The public IP is resolved through an HTTPS request to `api64.ipify.org` and cached for five minutes. The cache is used only while NetworkManager reports `online` connectivity. When connectivity is not `online`, the API returns `external_ip: null` and invalidates the cached value.
+The public IP is resolved through an HTTPS request to `api64.ipify.org` and cached for five minutes. The cache is used only while the effective connectivity is `online` (probe-confirmed; see `system.ResolveEffective` below). When connectivity is not `online`, the API returns `external_ip: null` and invalidates the cached value.
 
 `GET /system/status` includes:
 

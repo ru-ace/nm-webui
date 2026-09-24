@@ -50,24 +50,16 @@ func (s *Server) startBridge(ctx context.Context) error {
 func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 	switch sig.Name {
 	case nm.NmIfName + ".ConnectivityChanged":
-		if len(sig.Body) > 0 {
-			if v, ok := sig.Body[0].(uint32); ok {
-				// NM is the trigger, our probe is the judge: a "portal" verdict
-				// is re-verified, so a stale NM signal right after a successful
-				// sign-in does not flip the advertised state back.
-				state, changed := s.verdict.HandleNM(ctx, statusText(v))
-				if changed {
-					s.hub.Publish("connectivity_changed", map[string]interface{}{
-						"connectivity": codeForState(state),
-						"status":       state,
-					})
-				}
-			}
-		}
+		// NM's connectivity verdict is no longer used for portal detection at
+		// all (see system.ResolveEffective): it only exists as a link-level
+		// fallback inside the monitor. The signal is still valuable as a
+		// trigger that forces an immediate probe from our own check.
+		s.portalTrigger()
 	case nm.NmIfName + ".DeviceAdded", nm.NmIfName + ".DeviceRemoved":
 		s.hub.Publish("devices_changed", map[string]interface{}{
 			"event": sig.Name,
 		})
+		s.portalTrigger()
 	case nm.NmIfName + ".StateChanged":
 		if len(sig.Body) > 0 {
 			if v, ok := sig.Body[0].(uint32); ok {
@@ -77,6 +69,9 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 				})
 			}
 		}
+		// Manager transitions (connecting → connected, sleep/wake) may change
+		// the uplink: probe again.
+		s.portalTrigger()
 
 	case nm.ActiveConnIf + ".StateChanged":
 		// Every active connection emits StateChanged on each transition,
@@ -96,6 +91,9 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 			default:
 				return // transient states (activating, deactivating)
 			}
+			// A connection just came up or went down: the portal state on the
+			// new uplink must be re-checked immediately ("just connected").
+			s.portalTrigger()
 			if uuid, err := s.nm.ActiveConnectionByPath(sig.Path).Uuid(); err == nil && uuid != "" {
 				s.hub.Publish("connection_state_changed", map[string]interface{}{
 					"uuid":   uuid,
@@ -118,6 +116,11 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 		}
 		if len(sig.Body) > 1 {
 			reason, _ = sig.Body[1].(uint32)
+		}
+		if isTerminalDeviceState(state) {
+			// A link settled (up/down/unavailable): the uplink may have
+			// changed, so re-probe right away.
+			s.portalTrigger()
 		}
 		payload := map[string]interface{}{
 			"path":        string(sig.Path),
@@ -163,6 +166,14 @@ func (s *Server) dispatch(ctx context.Context, sig *dbus.Signal) {
 			"event": "Updated",
 			"path":  sig.Path,
 		})
+	}
+}
+
+// portalTrigger asks the background monitor for an out-of-band probe. Safe to
+// call in any signal path: the trigger is a coalesced, non-blocking channel.
+func (s *Server) portalTrigger() {
+	if s.monitor != nil {
+		s.monitor.Trigger()
 	}
 }
 

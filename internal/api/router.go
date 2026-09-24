@@ -22,7 +22,7 @@ type Server struct {
 	hub        *events.Hub
 	resolver   *system.Resolver
 	portal     *system.Detector
-	verdict    *system.VerdictLatcher
+	monitor    *PortalMonitor
 	power      powerActions
 	powerGuard *attemptLimiter
 	timeout    time.Duration
@@ -32,13 +32,32 @@ type Server struct {
 func New(cfg *config.Config, client *nm.Client, hub *events.Hub) *Server {
 	jar, _ := cookiejar.New(nil)
 	portal := system.NewDetector(cfg.CaptivePortalURLs, 30*time.Second, portalProbeWait, jar, cfg.PortalAllowJS)
+	interval := time.Duration(cfg.PortalCheckInterval) * time.Second
+	monitor := NewPortalMonitor(
+		portal.Refresh,
+		func() string {
+			st, err := client.Status()
+			if err != nil {
+				return ""
+			}
+			return statusText(st.Connectivity)
+		},
+		func() string {
+			g, err := client.PrimaryIPv4Gateway()
+			if err != nil {
+				return ""
+			}
+			return g
+		},
+		hub, interval, portalProbeWait,
+	)
 	return &Server{
 		cfg:        cfg,
 		nm:         client,
 		hub:        hub,
 		resolver:   system.NewResolver(),
 		portal:     portal,
-		verdict:    system.NewVerdictLatcher(portal.Probe),
+		monitor:    monitor,
 		power:      system.NewPowerController(),
 		powerGuard: newAttemptLimiter(time.Minute, 8),
 		timeout:    time.Duration(cfg.ConnectTimeout) * time.Second,
@@ -98,6 +117,15 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) StartBridge(ctx context.Context) error {
 	slog.Info("starting D-Bus event bridge")
 	return s.startBridge(ctx)
+}
+
+// StartPortalMonitor launches the background captive-portal probe loop.
+func (s *Server) StartPortalMonitor(ctx context.Context) {
+	if s.monitor == nil {
+		return
+	}
+	slog.Info("starting captive-portal monitor", "interval", s.monitor.interval.String())
+	s.monitor.Start(ctx)
 }
 
 func requestLogger(next http.Handler) http.Handler {

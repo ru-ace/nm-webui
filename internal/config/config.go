@@ -24,34 +24,36 @@ var ErrHelp = flag.ErrHelp
 // Config holds all service options. Order of precedence:
 // command line flags > config.yaml > environment variables > defaults.
 type Config struct {
-	Listen            string
-	AuthPass          string
-	InterfaceFilter   string
-	InterfaceRe       *regexp.Regexp
-	TLS               bool
-	TLSCert           string
-	TLSKey            string
-	LogLevel          string
-	ConfigFile        string
-	ConnectTimeout    int
-	CaptivePortalURLs []string
-	PortalAllowJS     bool
-	PowerActionPass   string
-	ShowVersion       bool
+	Listen              string
+	AuthPass            string
+	InterfaceFilter     string
+	InterfaceRe         *regexp.Regexp
+	TLS                 bool
+	TLSCert             string
+	TLSKey              string
+	LogLevel            string
+	ConfigFile          string
+	ConnectTimeout      int
+	CaptivePortalURLs   []string
+	PortalAllowJS       bool
+	PortalCheckInterval int
+	PowerActionPass     string
+	ShowVersion         bool
 }
 
 // Load parses configuration from flags, file and environment.
 func Load(args []string) (*Config, error) {
 	cfg := &Config{
-		Listen:          "0.0.0.0:8090",
-		AuthPass:        "",
-		InterfaceFilter: DefaultInterfaceFilter,
-		TLS:             false,
-		TLSCert:         "",
-		TLSKey:          "",
-		LogLevel:        "info",
-		ConnectTimeout:  45,
-		PortalAllowJS:   true,
+		Listen:              "0.0.0.0:8090",
+		AuthPass:            "",
+		InterfaceFilter:     DefaultInterfaceFilter,
+		TLS:                 false,
+		TLSCert:             "",
+		TLSKey:              "",
+		LogLevel:            "info",
+		ConnectTimeout:      45,
+		PortalAllowJS:       true,
+		PortalCheckInterval: 30,
 	}
 
 	// 1. Apply environment variables
@@ -91,6 +93,12 @@ func Load(args []string) (*Config, error) {
 	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_ALLOW_JS"); ok {
 		cfg.PortalAllowJS = v == "1" || strings.EqualFold(v, "true")
 	}
+	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_CHECK_INTERVAL"); ok {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.PortalCheckInterval = n
+		}
+	}
 	if v, ok := os.LookupEnv("NM_WEBUI_POWER_ACTION_PASSWORD"); ok {
 		cfg.PowerActionPass = v
 	}
@@ -109,6 +117,7 @@ func Load(args []string) (*Config, error) {
 		flagConnectTimeout  int
 		flagPortalURLs      string
 		flagPortalAllowJS   bool
+		flagPortalCheckInt  int
 		flagPowerActionPass string
 		flagVersion         bool
 		flagVersionShort    bool
@@ -125,6 +134,7 @@ func Load(args []string) (*Config, error) {
 	fs.IntVar(&flagConnectTimeout, "connect-timeout", cfg.ConnectTimeout, "wifi connect timeout in seconds")
 	fs.StringVar(&flagPortalURLs, "portal-check-urls", strings.Join(cfg.CaptivePortalURLs, ","), "comma-separated probe URLs for captive-portal detection")
 	fs.BoolVar(&flagPortalAllowJS, "portal-allow-js", cfg.PortalAllowJS, "allow portal JavaScript to run (sandboxed iframe; disable to strip scripts)")
+	fs.IntVar(&flagPortalCheckInt, "portal-check-interval", cfg.PortalCheckInterval, "seconds between background captive-portal checks")
 	fs.StringVar(&flagPowerActionPass, "power-action-password", cfg.PowerActionPass, "password for the Power section (reboot/poweroff); empty = Power section disabled")
 	fs.BoolVar(&flagVersion, "version", false, "print version and exit")
 	fs.BoolVar(&flagVersionShort, "v", false, "print version and exit")
@@ -190,6 +200,9 @@ func Load(args []string) (*Config, error) {
 	if set["portal-allow-js"] {
 		cfg.PortalAllowJS = flagPortalAllowJS
 	}
+	if set["portal-check-interval"] {
+		cfg.PortalCheckInterval = flagPortalCheckInt
+	}
 	if set["power-action-password"] {
 		cfg.PowerActionPass = flagPowerActionPass
 	}
@@ -213,6 +226,7 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 		ConnectTimeout  *int    `yaml:"connect-timeout"`
 		PortalURLs      *string `yaml:"portal-check-urls"`
 		PortalAllowJS   *bool   `yaml:"portal-allow-js"`
+		PortalCheckInt  *int    `yaml:"portal-check-interval"`
 		PowerActionPass *string `yaml:"power-action-password"`
 	}
 	var fc fileCfg
@@ -249,6 +263,9 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 	if !set["portal-allow-js"] && fc.PortalAllowJS != nil {
 		c.PortalAllowJS = *fc.PortalAllowJS
 	}
+	if !set["portal-check-interval"] && fc.PortalCheckInt != nil {
+		c.PortalCheckInterval = *fc.PortalCheckInt
+	}
 	if !set["power-action-password"] && fc.PowerActionPass != nil {
 		c.PowerActionPass = *fc.PowerActionPass
 	}
@@ -272,6 +289,9 @@ func (c *Config) finalize() *Config {
 	}
 	if c.ConnectTimeout <= 0 {
 		c.ConnectTimeout = 45
+	}
+	if c.PortalCheckInterval <= 0 {
+		c.PortalCheckInterval = 30
 	}
 	var err error
 	c.InterfaceRe, err = regexp.Compile(c.InterfaceFilter)

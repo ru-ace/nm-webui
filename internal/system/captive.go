@@ -128,37 +128,25 @@ func (d *Detector) lookup(ctx context.Context, force bool) (PortalState, error) 
 // probe walks the configured probe URLs and classifies each response. The
 // first "online" proof wins immediately; otherwise the first portal sighting
 // is kept. When nothing answers, the state is "none".
+//
+// Redirect handling is intentionally bounded: captive portals routinely
+// bounce the check URL at a plain-HTTP middlebox (307 → https portal, with a
+// `Via: middlebox` header) and some loop the check between the portal and
+// the check endpoint. Any such detour away from a success marker is itself
+// the portal signal, so redirect loops or a failed follow to a foreign host
+// must not degrade the probe to "none".
 func (d *Detector) probe(ctx context.Context) (PortalState, error) {
 	var hit PortalState
 	hit.State = "unknown"
 	for _, u := range d.urls {
-		reqCtx, cancel := context.WithTimeout(ctx, d.timeout)
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u, nil)
-		if err != nil {
-			cancel()
-			continue
-		}
-		req.Header.Set("Accept", "*/*")
-		req.Header.Set("User-Agent", "nm-webui captive-portal-check/1.0")
-		resp, err := d.client.Do(req)
-		cancel()
-		if err != nil {
-			continue
-		}
-		final := resp.Request.URL.String()
-		ct := resp.Header.Get("Content-Type")
-		body, err := io.ReadAll(io.LimitReader(resp.Body, d.maxBody+1))
-		resp.Body.Close()
-		if err != nil {
-			continue
-		}
-		switch classifyProbe(resp.StatusCode, ct, body) {
+		h := d.probeOne(ctx, u)
+		switch h.state {
 		case "online":
 			hit = PortalState{State: "online", ProbeURL: u}
 			return hit, nil
 		case "portal":
 			if hit.State != "portal" {
-				hit = PortalState{State: "portal", PortalURL: final, ProbeURL: u}
+				hit = PortalState{State: "portal", PortalURL: h.portalURL, ProbeURL: u}
 			}
 		}
 	}
@@ -168,6 +156,77 @@ func (d *Detector) probe(ctx context.Context) (PortalState, error) {
 	}
 	hit.State = "none"
 	return hit, nil
+}
+
+// redirectHopLimit bounds how many redirects the probe follows per check URL.
+// Real captive flows settle within one or two hops; anything still redirecting
+// after this many is treated as a portal loop and classified from the last
+// response (see classifyProbe: a 3xx that is not a success marker is portal).
+const redirectHopLimit = 3
+
+// probeHit is the per-URL classification result.
+type probeHit struct {
+	state     string // "online" | "portal" | "" (inconclusive)
+	portalURL string // sign-in page after a portal sighting, if known
+}
+
+// probeOne probes a single check URL. The check runs on a copy of the shared
+// client so each URL gets its own redirect policy while still sharing the
+// transport and the portal session cookie jar.
+func (d *Detector) probeOne(ctx context.Context, u string) probeHit {
+	reqCtx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u, nil)
+	if err != nil {
+		return probeHit{}
+	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", "nm-webui captive-portal-check/1.0")
+
+	// firstRedirect captures the absolute target of the first 3xx hop; it is
+	// the portal sign-in URL whenever the middlebox redirects the check.
+	var firstRedirect *url.URL
+	client := *d.client // shallow copy: same Transport and Jar, own CheckRedirect
+	client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
+		if firstRedirect == nil && r.URL != nil {
+			firstRedirect = r.URL
+		}
+		if len(via) >= redirectHopLimit {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		// The check was pointed at a portal but the follow-through failed
+		// (TLS reset by the operator, redirect loop, unreachable portal).
+		// The redirect itself is the portal evidence.
+		if firstRedirect != nil {
+			return probeHit{state: "portal", portalURL: firstRedirect.String()}
+		}
+		return probeHit{}
+	}
+	final := resp.Request.URL.String()
+	ct := resp.Header.Get("Content-Type")
+	body, err := io.ReadAll(io.LimitReader(resp.Body, d.maxBody+1))
+	resp.Body.Close()
+	if err != nil {
+		// Mid-body reset on the final page: could be an intercepted check.
+		// Only call it a portal when the check was actually redirected.
+		if firstRedirect != nil {
+			return probeHit{state: "portal", portalURL: firstRedirect.String()}
+		}
+		return probeHit{}
+	}
+	switch classifyProbe(resp.StatusCode, ct, body) {
+	case "online":
+		return probeHit{state: "online"}
+	case "portal":
+		return probeHit{state: "portal", portalURL: final}
+	}
+	return probeHit{}
 }
 
 // classifyProbe decides "online" vs "portal" for a single probe response.

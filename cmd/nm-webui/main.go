@@ -61,6 +61,9 @@ func main() {
 		slog.Error("event bridge", "err", err)
 		os.Exit(1)
 	}
+	// Portal checks run fully self-owned: NM verdicts are only a link-level
+	// fallback and a trigger source, the probe is the judge.
+	server.StartPortalMonitor(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,

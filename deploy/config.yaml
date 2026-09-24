@@ -26,6 +26,20 @@ log-level: "info"
 # WiFi connection timeout in seconds
 connect-timeout: 45
 
+# How often the background captive-portal probe re-checks connectivity
+# (seconds). NM verdicts are NOT used for portal detection — the probe is
+# the judge, NM only triggers re-checks. Default: 30.
+# Can also be set via NM_WEBUI_PORTAL_CHECK_INTERVAL env var.
+portal-check-interval: 30
+
+# Comma-separated probe URLs for captive-portal detection; leave empty for
+# the defaults (captive.apple.com, detectportal.firefox.com).
+portal-check-urls: ""
+
+# Allow portal JavaScript to run in the sandboxed iframe (disable to strip
+# scripts from proxied portal pages).
+portal-allow-js: true
+
 # Password for the Power section (reboot / power off from the web UI).
 # Empty = section hidden. Non-root installs need deploy/sudoers/nm-webui-power
 # installed (deploy/install.sh does it automatically); see README.

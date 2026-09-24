@@ -84,3 +84,79 @@ func TestPowerActionPasswordPrecedenceFlagOverFile(t *testing.T) {
 		t.Fatalf("PowerActionPass = %q, want flagsecret (flag must win over file)", cfg.PowerActionPass)
 	}
 }
+
+func TestPortalCheckIntervalDefault(t *testing.T) {
+	cfg, err := Load([]string{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 30 {
+		t.Fatalf("PortalCheckInterval = %d, want 30", cfg.PortalCheckInterval)
+	}
+}
+
+func TestPortalCheckIntervalFlag(t *testing.T) {
+	cfg, err := Load([]string{"--portal-check-interval=15"})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 15 {
+		t.Fatalf("PortalCheckInterval = %d, want 15", cfg.PortalCheckInterval)
+	}
+}
+
+func TestPortalCheckIntervalEnv(t *testing.T) {
+	os.Setenv("NM_WEBUI_PORTAL_CHECK_INTERVAL", "45")
+	defer os.Unsetenv("NM_WEBUI_PORTAL_CHECK_INTERVAL")
+
+	cfg, err := Load([]string{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 45 {
+		t.Fatalf("PortalCheckInterval = %d, want 45", cfg.PortalCheckInterval)
+	}
+}
+
+func TestPortalCheckIntervalFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("portal-check-interval: 60\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load([]string{"--config", path})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 60 {
+		t.Fatalf("PortalCheckInterval = %d, want 60", cfg.PortalCheckInterval)
+	}
+}
+
+func TestPortalCheckIntervalFlagOverFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("portal-check-interval: 60\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load([]string{"--config", path, "--portal-check-interval=5"})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 5 {
+		t.Fatalf("PortalCheckInterval = %d, want 5 (flag wins over file)", cfg.PortalCheckInterval)
+	}
+}
+
+func TestPortalCheckIntervalClampedPositive(t *testing.T) {
+	os.Setenv("NM_WEBUI_PORTAL_CHECK_INTERVAL", "0")
+	defer os.Unsetenv("NM_WEBUI_PORTAL_CHECK_INTERVAL")
+
+	cfg, err := Load([]string{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PortalCheckInterval != 30 {
+		t.Fatalf("PortalCheckInterval = %d, want clamped 30", cfg.PortalCheckInterval)
+	}
+}
