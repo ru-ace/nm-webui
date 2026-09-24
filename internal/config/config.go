@@ -4,8 +4,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -37,6 +39,7 @@ type Config struct {
 	CaptivePortalURLs   []string
 	PortalAllowJS       bool
 	PortalCheckInterval int
+	PortalProxyListen   string
 	PowerActionPass     string
 	ShowVersion         bool
 }
@@ -54,6 +57,7 @@ func Load(args []string) (*Config, error) {
 		ConnectTimeout:      45,
 		PortalAllowJS:       true,
 		PortalCheckInterval: 30,
+		PortalProxyListen:   "0.0.0.0:8091",
 	}
 
 	// 1. Apply environment variables
@@ -99,6 +103,9 @@ func Load(args []string) (*Config, error) {
 			cfg.PortalCheckInterval = n
 		}
 	}
+	if v, ok := os.LookupEnv("NM_WEBUI_PORTAL_PROXY_LISTEN"); ok {
+		cfg.PortalProxyListen = v
+	}
 	if v, ok := os.LookupEnv("NM_WEBUI_POWER_ACTION_PASSWORD"); ok {
 		cfg.PowerActionPass = v
 	}
@@ -118,6 +125,7 @@ func Load(args []string) (*Config, error) {
 		flagPortalURLs      string
 		flagPortalAllowJS   bool
 		flagPortalCheckInt  int
+		flagPortalProxyList string
 		flagPowerActionPass string
 		flagVersion         bool
 		flagVersionShort    bool
@@ -135,6 +143,7 @@ func Load(args []string) (*Config, error) {
 	fs.StringVar(&flagPortalURLs, "portal-check-urls", strings.Join(cfg.CaptivePortalURLs, ","), "comma-separated probe URLs for captive-portal detection")
 	fs.BoolVar(&flagPortalAllowJS, "portal-allow-js", cfg.PortalAllowJS, "allow portal JavaScript to run (sandboxed iframe; disable to strip scripts)")
 	fs.IntVar(&flagPortalCheckInt, "portal-check-interval", cfg.PortalCheckInterval, "seconds between background captive-portal checks")
+	fs.StringVar(&flagPortalProxyList, "portal-proxy-listen", cfg.PortalProxyListen, "dedicated portal-proxy listen address (IP:port); empty disables the second origin")
 	fs.StringVar(&flagPowerActionPass, "power-action-password", cfg.PowerActionPass, "password for the Power section (reboot/poweroff); empty = Power section disabled")
 	fs.BoolVar(&flagVersion, "version", false, "print version and exit")
 	fs.BoolVar(&flagVersionShort, "v", false, "print version and exit")
@@ -203,6 +212,9 @@ func Load(args []string) (*Config, error) {
 	if set["portal-check-interval"] {
 		cfg.PortalCheckInterval = flagPortalCheckInt
 	}
+	if set["portal-proxy-listen"] {
+		cfg.PortalProxyListen = flagPortalProxyList
+	}
 	if set["power-action-password"] {
 		cfg.PowerActionPass = flagPowerActionPass
 	}
@@ -227,6 +239,7 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 		PortalURLs      *string `yaml:"portal-check-urls"`
 		PortalAllowJS   *bool   `yaml:"portal-allow-js"`
 		PortalCheckInt  *int    `yaml:"portal-check-interval"`
+		PortalProxyList *string `yaml:"portal-proxy-listen"`
 		PowerActionPass *string `yaml:"power-action-password"`
 	}
 	var fc fileCfg
@@ -265,6 +278,9 @@ func (c *Config) applyConfigFile(set map[string]bool) error {
 	}
 	if !set["portal-check-interval"] && fc.PortalCheckInt != nil {
 		c.PortalCheckInterval = *fc.PortalCheckInt
+	}
+	if !set["portal-proxy-listen"] && fc.PortalProxyList != nil {
+		c.PortalProxyListen = *fc.PortalProxyList
 	}
 	if !set["power-action-password"] && fc.PowerActionPass != nil {
 		c.PowerActionPass = *fc.PowerActionPass
@@ -315,4 +331,40 @@ func (c *Config) AuthEnabled() bool {
 // is active. It is enabled when a power action password is configured.
 func (c *Config) PowerActionEnabled() bool {
 	return c.PowerActionPass != ""
+}
+
+// ListenPort returns the admin listener's port as a string. When the address
+// cannot be parsed the default 8090 is returned, keeping callers (e.g. the
+// portal-origin derivation) resilient against unusual listen values.
+func (c *Config) ListenPort() string {
+	if _, port, err := net.SplitHostPort(c.Listen); err == nil && port != "" {
+		return port
+	}
+	return "8090"
+}
+
+// PortalProxyPort returns the port the dedicated portal-proxy listener is
+// bound to, or "" when the listener is disabled.
+func (c *Config) PortalProxyPort() string {
+	if c.PortalProxyListen == "" {
+		return ""
+	}
+	if _, port, err := net.SplitHostPort(c.PortalProxyListen); err == nil && port != "" {
+		return port
+	}
+	return ""
+}
+
+// PortalProxyOffset returns the numeric delta between the admin and portal
+// proxy listener ports (e.g. 8090 → 8091 gives 1). Clients that reach the
+// admin through a port-mapped forward (ssh -L, docker -p) apply the same
+// offset to the portal port, so both listeners stay on the same reachable
+// interface. Returns 0 when neither port parses.
+func (c *Config) PortalProxyOffset() int {
+	admin, err1 := strconv.Atoi(c.ListenPort())
+	portal, err2 := strconv.Atoi(c.PortalProxyPort())
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return portal - admin
 }

@@ -70,19 +70,30 @@ captive portal, веб-интерфейс обнаруживает его опр
   перехватывающие plain HTTP (часть третьестороннего HTTPS пропускают),
   больше не прячут портал за фальшивым вердиктом NM.
 - Документ портала отрисовывается в песочнице `<iframe>`, чей `src` всегда
-  указывает на прокси-эндпоинт (`/api/v1/captive-portal/proxy?url=…`), а не
+  указывает на прокси-эндпоинт (`…/api/v1/captive-portal/proxy?url=…`), а не
   на хост портала напрямую, поэтому hostname портала резолвит только
   Go-прокси на хосте (например, DNS гостиницы), но никогда браузер клиента.
 - Прокси переписывает документ на сервере (ссылки, формы, стили, `srcset`,
   meta-refresh) так, что всё резолвится обратно через прокси; формы
   отправляются через прокси, а session cookie портала хранится на стороне
   сервера, поэтому вход «прилипает».
-- JavaScript портала включён по умолчанию и исполняется внутри песочницы
-  iframe (`allow-forms allow-scripts allow-popups allow-modals`, **без**
-  `allow-same-origin`): код портала работает в opaque origin и не может
-  добраться до SPA админки, её кук или API. Маленький телеметрия-скрипт
+- По умолчанию прокси слушает **отдельный порт** (`portal-proxy-listen`,
+  `0.0.0.0:8091`) — отдельный origin, на котором живут только прокси-
+  эндпоинты (никакого admin API и аутентификации). Песочница iframe тогда
+  получает дополнительно `allow-same-origin`: документ портала становится
+  same-origin только с этим слушателем, поэтому SPA-порталы
+  (Angular/Keycloak-стиля) запускаются с рабочим `localStorage`, но при этом
+  не могут добраться до UI админки, её кук или API. Если отдельный слушатель
+  отключён (пустое значение), портал работает через origin самой админки, а
+  песочница остаётся полностью opaque (`allow-forms allow-scripts
+  allow-popups allow-modals`, **без** `allow-same-origin`), и код портала не
+  может добраться до SPA админки. Маленький телеметрия-скрипт
   синхронизирует адресную строку мини-браузера с навигацией внутри iframe
   (переходы по ссылкам, редиректы, history API) через `postMessage`.
+- Прокси выдаёт CORS только opaque-происхождениям (`null`): песочница без
+  `allow-same-origin` всё ещё может грузить module-скрипты через прокси, но
+  произвольные сайты не смогут читать проксированные ответы (роутер не
+  становится открытым CORS-релеем).
 - `<base>`, `<iframe>`, `<object>`, `<embed>` и пер-элементные атрибуты
   (`formaction`/`formmethod` и `target`/`formtarget`) прокси вырезает всегда —
   проксированный контент не может перенаправить окно админки или открыть
@@ -100,15 +111,25 @@ captive portal, веб-интерфейс обнаруживает его опр
 portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
 # секунды между фоновыми проверками captive portal (по умолчанию 30)
 portal-check-interval: 30
+# отдельный слушатель прокси портала — отдельный origin для iframe
+# (по умолчанию 0.0.0.0:8091); пустое значение отключает
+portal-proxy-listen: "0.0.0.0:8091"
 ```
 
 ```bash
 # CLI / env
 nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html" \
-  --portal-check-interval 30
+  --portal-check-interval 30 --portal-proxy-listen "0.0.0.0:8091"
 export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
 export NM_WEBUI_PORTAL_CHECK_INTERVAL="30"
+export NM_WEBUI_PORTAL_PROXY_LISTEN="0.0.0.0:8091"
 ```
+
+Порт прокси портала должен быть доступен браузерам наряду с портом админки.
+Если к UI админки вы ходите через проброс портов (`ssh -L` или Docker `-p`),
+пробросьте и порт прокси с тем же смещением — например, рядом с
+`18090 → 8090` также `18091 → 8091` — и веб-интерфейс подхватит
+соответствующий origin автоматически.
 
 Чтобы проксировать страницы **без** JavaScript, задайте `--portal-allow-js=false`
 (`NM_WEBUI_PORTAL_ALLOW_JS=false`) — тогда `<script>` и обработчики `on*`

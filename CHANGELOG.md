@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dedicated portal-proxy listener (`portal-proxy-listen`, default
+  `0.0.0.0:8091`) serving the portal mini-browser from its own origin:
+  framework captive portals (Angular/Keycloak) boot in the sandboxed iframe
+  with `allow-same-origin` (working localStorage) while staying isolated from
+  the admin API. The SPA derives the origin from the admin address, carrying
+  the forwarded-port offset over; empty value restores the opaque-sandbox
+  behaviour
+- Portal-proxy CORS: opaque (`null`) origins may read proxied responses
+  (module scripts in the opaque sandbox) and get OPTIONS preflights; all other
+  origins are refused — the router is not an open CORS relay
+
 ### Changed
 
 - The portal HTML proxy keeps a canonical `<base href="/">` instead of

@@ -57,46 +57,72 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// D-Bus → SSE bridge and the self-owned captive-portal monitor.
 	if err := server.StartBridge(ctx); err != nil {
 		slog.Error("event bridge", "err", err)
 		os.Exit(1)
 	}
-	// Portal checks run fully self-owned: NM verdicts are only a link-level
-	// fallback and a trigger source, the probe is the judge.
 	server.StartPortalMonitor(ctx)
 
-	srv := &http.Server{
-		Addr:              cfg.Listen,
-		Handler:           server.Handler(),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
 	tlsConfig, err := tlsSetup(cfg)
 	if err != nil {
 		slog.Error("tls setup", "err", err)
 		os.Exit(1)
 	}
 
-	go func() {
-		slog.Info("http server listening", "addr", cfg.Listen,
-			"auth", cfg.AuthEnabled(), "tls", cfg.TLS)
-		var err error
-		if cfg.TLS {
-			srv.TLSConfig = tlsConfig
-			err = srv.ListenAndServeTLS("", "")
-		} else {
-			err = srv.ListenAndServe()
+	// Admin listener: full UI + API. The portal proxy stays mounted here too
+	// (root-relative fallback and opaque-sandbox embeds), auth included.
+	admin := &http.Server{
+		Addr:              cfg.Listen,
+		Handler:           server.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	run := func(name string, srv *http.Server, tlsOn bool) {
+		slog.Info("http server listening", "name", name, "addr", srv.Addr,
+			"auth", cfg.AuthEnabled(), "tls", tlsOn)
+		go func() {
+			var err error
+			if tlsOn {
+				srv.TLSConfig = tlsConfig
+				err = srv.ListenAndServeTLS("", "")
+			} else {
+				err = srv.ListenAndServe()
+			}
+			if err != nil && err != http.ErrServerClosed {
+				slog.Error("http server", "name", name, "err", err)
+				stop()
+			}
+		}()
+	}
+
+	run("admin", admin, cfg.TLS)
+
+	// Dedicated portal-proxy listener: a separate origin for the sandboxed
+	// portal iframe. Served here the portal document becomes same-origin with
+	// this listener only (never with the admin), so the iframe sandbox can
+	// add allow-same-origin for framework SPAs. Only the proxy endpoints
+	// exist on this origin — no admin API, no auth.
+	var portal *http.Server
+	if cfg.PortalProxyListen != "" {
+		portal = &http.Server{
+			Addr:              cfg.PortalProxyListen,
+			Handler:           server.PortalProxyHandler(),
+			ReadHeaderTimeout: 10 * time.Second,
 		}
-		if err != nil && err != http.ErrServerClosed {
-			slog.Error("http server", "err", err)
-			stop()
-		}
-	}()
+		run("portal-proxy", portal, cfg.TLS)
+	} else {
+		slog.Info("dedicated portal-proxy listener disabled — portal iframes use the admin origin")
+	}
 
 	<-ctx.Done()
 	slog.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+	_ = admin.Shutdown(shutdownCtx)
+	if portal != nil {
+		_ = portal.Shutdown(shutdownCtx)
+	}
 }
 
 func tlsSetup(cfg *config.Config) (*tls.Config, error) {

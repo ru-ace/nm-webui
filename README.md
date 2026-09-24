@@ -69,7 +69,7 @@ portal, the web UI detects it by probing well-known check endpoints
   operators that intercept plain HTTP while letting some HTTPS through no
   longer hide the portal behind a fake NM verdict.
 - The portal document is rendered in a sandboxed `<iframe>` whose `src` always
-  points at the proxy endpoint (`/api/v1/captive-portal/proxy?url=…`) — never
+  points at a proxy endpoint (`…/api/v1/captive-portal/proxy?url=…`) — never
   at the portal host directly — so portal hostnames are resolved only by the
   Go proxy on the host (e.g. by the hotel's DNS) and never by the client
   browser.
@@ -77,12 +77,23 @@ portal, the web UI detects it by probing well-known check endpoints
   meta-refresh) so everything resolves back through the proxy; forms are
   submitted through the proxy and any portal session cookie is kept
   server-side, so the sign-in sticks.
-- Portal JavaScript is enabled by default and runs inside the sandboxed iframe
-  (`allow-forms allow-scripts allow-popups allow-modals`, **without**
-  `allow-same-origin`), so the portal code executes in an opaque origin and
-  can never touch the admin SPA, its cookies or its API. A small telemetry
-  snippet keeps the mini-browser address bar in sync with in-frame navigation
-  (link clicks, redirects, history API) via `postMessage`.
+- By default the proxy runs on a **dedicated listener** (`portal-proxy-listen`,
+  `0.0.0.0:8091`) — a separate origin served to nothing but the proxy
+  endpoints (no admin API, no auth). The iframe sandbox then adds
+  `allow-same-origin`: the portal document becomes same-origin with *that*
+  listener only, so framework SPAs (Angular/Keycloak-style) boot with working
+  `localStorage` while still being unable to reach the admin UI, its cookies
+  or its API. When the dedicated listener is disabled (empty value) the portal
+  runs through the admin's own origin instead, and the sandbox keeps the fully
+  opaque origin (`allow-forms allow-scripts allow-popups allow-modals`,
+  **without** `allow-same-origin`) so portal scripts can never touch the admin
+  SPA. A small telemetry snippet keeps the mini-browser address bar in sync
+  with in-frame navigation (link clicks, redirects, history API) via
+  `postMessage`.
+- Proxy responses grant CORS only to opaque (`null`) origins — sandboxed
+  frames without `allow-same-origin` can still load module scripts through the
+  proxy, while arbitrary websites can never read proxied responses (the router
+  is not an open CORS relay).
 - `<base>`, `<iframe>`, `<object>`, `<embed>` and per-control attributes
   (`formaction`/`formmethod` and `target`/`formtarget`) are always stripped by
   the proxy, so proxied pages can never redirect the admin window or open
@@ -100,15 +111,25 @@ Probe URLs are configurable:
 portal-check-urls: "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
 # seconds between background captive-portal checks (default 30)
 portal-check-interval: 30
+# dedicated portal-proxy listener — a separate origin for the sandboxed
+# portal iframe (default 0.0.0.0:8091); empty disables it
+portal-proxy-listen: "0.0.0.0:8091"
 ```
 
 ```bash
 # CLI / env
 nm-webui --portal-check-urls "http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html" \
-  --portal-check-interval 30
+  --portal-check-interval 30 --portal-proxy-listen "0.0.0.0:8091"
 export NM_WEBUI_PORTAL_URLS="http://captive.apple.com/hotspot-detect.html,http://detectportal.firefox.com/canonical.html"
 export NM_WEBUI_PORTAL_CHECK_INTERVAL="30"
+export NM_WEBUI_PORTAL_PROXY_LISTEN="0.0.0.0:8091"
 ```
+
+The portal-proxy port must be reachable by browsers alongside the admin port.
+If the admin UI is reached through a port-mapped forward (`ssh -L` or Docker
+`-p`), forward the portal port too with the same offset — e.g. alongside
+`18090 → 8090` also `18091 → 8091` — and the web UI picks up the matching
+origin automatically.
 
 To run proxied pages **without** JavaScript, set `--portal-allow-js=false`
 (`NM_WEBUI_PORTAL_ALLOW_JS=false`) — `<script>` and `on*` handlers are then

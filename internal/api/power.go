@@ -30,10 +30,13 @@ type powerRequest struct {
 }
 
 // handleSystemFeatures reports which optional sections of the UI are enabled,
-// so the SPA can show/hide them (e.g. the Power page).
-func (s *Server) handleSystemFeatures(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]bool{
-		"power": s.cfg.PowerActionEnabled(),
+// so the SPA can show/hide them (e.g. the Power page). Portal settings that
+// the SPA needs at render time — such as the portal-proxy origin — live here
+// too: they are configuration-derived and do not belong in the runtime status.
+func (s *Server) handleSystemFeatures(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"power":             s.cfg.PowerActionEnabled(),
+		"portal_proxy_base": s.PortalProxyBase(r),
 	})
 }
 

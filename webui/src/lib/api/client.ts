@@ -86,6 +86,13 @@ export interface SystemStatus {
 
 export interface SystemFeatures {
   power: boolean;
+  /**
+   * Client-visible origin of the dedicated portal-proxy listener (e.g.
+   * "http://192.168.1.5:8091"). Empty when the listener is disabled — the
+   * portal iframe then falls back to the admin's own origin and keeps the
+   * fully opaque sandbox.
+   */
+  portal_proxy_base?: string;
 }
 
 export interface DeviceInfo {

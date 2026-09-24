@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { captivePortal, loading, recheckCaptivePortal } from '$lib/stores/app';
+  import { captivePortal, loading, recheckCaptivePortal, portalProxyBase, loadFeatures } from '$lib/stores/app';
   import { NAVIGATE_EVENT, navigate } from '$lib/stores/router';
   import { headerAction } from '$lib/stores/header';
   import {
@@ -16,12 +16,19 @@
   import { fly } from 'svelte/transition';
 
   const PROXY = '/api/v1/captive-portal/proxy';
-  // Sandboxed without allow-same-origin: portal scripts run in an opaque
-  // origin, so they can never touch the admin SPA, its cookies or its API.
-  const SANDBOX = 'allow-forms allow-scripts allow-popups allow-modals';
+  // Opaque sandbox (default): portal scripts run in an opaque origin, so they
+  // can never touch the admin SPA, its cookies or its API.
+  const SANDBOX_OPAQUE = 'allow-forms allow-scripts allow-popups allow-modals';
+  // Distinct-origin sandbox: with the portal served by the dedicated proxy
+  // listener (a separate origin, see portal_proxy_base) the frame becomes
+  // same-origin only with itself, never with the admin, so allow-same-origin
+  // is safe and framework SPAs get working localStorage on their own origin.
+  const SANDBOX_DISTINCT = 'allow-forms allow-scripts allow-popups allow-modals allow-same-origin';
 
   let frameEl: HTMLIFrameElement | null = null;
   let frameSrc = '';
+  let loadedProxyBase = '';
+  let sandbox = SANDBOX_OPAQUE;
   let urlInput = '';
   let addressValue = '';
   let currentUrl = '';
@@ -42,8 +49,16 @@
     return /^https?:\/\//i.test(target.trim());
   }
 
+  // The proxy may live on the admin's own origin (dedicated listener
+  // disabled) or on a separate origin served by PortalProxyHandler.
+  function portalBase(): string {
+    const base = get(portalProxyBase);
+    if (base) return base.replace(/\/+$/, '');
+    return window.location.origin;
+  }
+
   function proxyUrl(target: string): string {
-    return `${PROXY}?url=${encodeURIComponent(target.trim())}`;
+    return `${portalBase()}${PROXY}?url=${encodeURIComponent(target.trim())}`;
   }
 
   function targetOfQuery(u: URL): string {
@@ -83,7 +98,27 @@
     onlineNotice = false;
     busy = true;
     reflectLocation(target);
+    loadedProxyBase = portalBase();
     frameSrc = `${proxyUrl(target)}&r=${Date.now()}`;
+  }
+
+  // The sandbox and proxy base depend on the portal-proxy origin, which the
+  // backend announces in /system/features after a (usually quick) boot fetch.
+  $: sandbox = (() => {
+    const base = $portalProxyBase;
+    if (!base) return SANDBOX_OPAQUE;
+    try {
+      return new URL(base).origin !== window.location.origin ? SANDBOX_DISTINCT : SANDBOX_OPAQUE;
+    } catch {
+      return SANDBOX_OPAQUE;
+    }
+  })();
+
+  // If a frame was already loaded before the features arrived (auto-open or a
+  // direct navigation), re-point it at the dedicated proxy origin so portal
+  // content enjoys the separate-origin sandbox rather than the fallback.
+  $: if ($portalProxyBase !== '' && currentUrl && loadedProxyBase !== $portalProxyBase) {
+    loadInFrame(currentUrl);
   }
 
   function onFrameLoad() {
@@ -193,7 +228,16 @@
 
   onDestroy(() => headerAction.set(null));
 
-  onMount(() => {
+  onMount(async () => {
+    // The proxy base (dedicated portal-origin listener) must be known before
+    // the first iframe load so the sandbox and URLs are chosen correctly.
+    // It comes from /system/features; on failure we fall back to the admin's
+    // own origin with the fully opaque sandbox.
+    try {
+      await loadFeatures();
+    } catch {
+      // fall back
+    }
     const initial = initialTarget();
     if (initial) go(initial);
 
@@ -295,7 +339,7 @@
         <iframe
           bind:this={frameEl}
           src={frameSrc}
-          sandbox={SANDBOX}
+          sandbox={sandbox}
           referrerpolicy="no-referrer"
           onload={onFrameLoad}
           class="w-full flex-1 min-h-0 rounded-lg border border-base-300 bg-white"

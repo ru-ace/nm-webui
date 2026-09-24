@@ -3,11 +3,15 @@ package api
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ru-ace/nm-webui/internal/nm"
 	"github.com/ru-ace/nm-webui/internal/system"
 )
@@ -136,6 +140,25 @@ func (s *Server) handlePortalProxyGet(w http.ResponseWriter, r *http.Request) {
 	s.servePortalFetch(w, r, http.MethodGet, target, nil)
 }
 
+// handlePortalProxyOptions answers CORS preflights for the portal proxy
+// (module scripts and fetch/XHR from sandboxed frames trigger them). Access
+// is granted only to opaque ("null") origins — the proxy responses thereby
+// stay unreadable to arbitrary websites, so neither listener becomes an open
+// CORS relay, while framework SPAs sandboxed without allow-same-origin can
+// still load their script bundles.
+func (s *Server) handlePortalProxyOptions(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	h.Set("Access-Control-Allow-Headers", "Content-Type")
+	h.Set("Access-Control-Max-Age", "600")
+	h.Set("Access-Control-Expose-Headers", "X-Final-Url")
+	h.Set("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+	if r.Header.Get("Origin") == "null" {
+		h.Set("Access-Control-Allow-Origin", "null")
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handlePortalProxyPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		writeErr(w, http.StatusBadRequest, "malformed form")
@@ -169,6 +192,61 @@ func (s *Server) servePortalFetch(w http.ResponseWriter, r *http.Request, method
 	h.Set("Content-Type", ct)
 	h.Set("X-Final-URL", finalURL)
 	h.Set("Cache-Control", "no-store")
+	// CORS for sandboxed portal frames: opaque-origin documents (sandbox
+	// without allow-same-origin, data: URLs) must be able to read proxied
+	// module scripts and subresources. Only "null" origins are granted;
+	// Vary: Origin keeps caches (browsers, intermediaries) honest.
+	h.Set("Vary", "Origin")
+	if r.Header.Get("Origin") == "null" {
+		h.Set("Access-Control-Allow-Origin", "null")
+		h.Set("Access-Control-Expose-Headers", "X-Final-Url")
+	}
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+}
+
+// PortalProxyHandler returns the handler tree of the dedicated portal-proxy
+// listener. It exposes nothing but the proxy endpoints: with the sandboxed
+// portal iframe served from this origin (allow-same-origin), portal content
+// becomes same-origin with this origin only — the router admin API must not
+// be reachable here, otherwise framable portal pages could drive it.
+func (s *Server) PortalProxyHandler() http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
+	r.Use(requestLogger)
+	r.Options("/api/v1/captive-portal/proxy", s.handlePortalProxyOptions)
+	r.Get("/api/v1/captive-portal/proxy", s.handlePortalProxyGet)
+	r.Post("/api/v1/captive-portal/proxy", s.handlePortalProxyPost)
+	return r
+}
+
+// PortalProxyBase returns the client-visible origin of the dedicated
+// portal-proxy listener: it mirrors the scheme and host the client used for
+// the admin UI and substitutes the proxy port. When the client reaches the
+// admin through a port-mapped forward (ssh -L, docker -p publishing different
+// host ports), the same numeric offset is applied to the proxy port so both
+// listeners stay on the same reachable interface. Returns "" when the
+// dedicated listener is disabled (the SPA then falls back to the admin's own
+// origin and keeps the fully opaque iframe sandbox).
+func (s *Server) PortalProxyBase(r *http.Request) string {
+	port := s.cfg.PortalProxyPort()
+	if port == "" {
+		return ""
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	host := r.Host
+	if h, hp, err := net.SplitHostPort(r.Host); err == nil {
+		host = h
+		if clientPort, cerr := strconv.Atoi(hp); cerr == nil {
+			if basePort, berr := strconv.Atoi(port); berr == nil {
+				if adminPort, aerr := strconv.Atoi(s.cfg.ListenPort()); aerr == nil {
+					port = strconv.Itoa(basePort + (clientPort - adminPort))
+				}
+			}
+		}
+	}
+	return scheme + "://" + net.JoinHostPort(host, port)
 }

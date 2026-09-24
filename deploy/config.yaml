@@ -40,6 +40,17 @@ portal-check-urls: ""
 # scripts from proxied portal pages).
 portal-allow-js: true
 
+# Dedicated portal-proxy listener (IP:port). Serving the portal iframe from
+# its own origin lets framework SPAs (Angular/Keycloak) boot in the mini-
+# browser: the sandbox then adds allow-same-origin, the frame becomes
+# same-origin only with this listener (no admin API lives here) and nothing
+# on it can touch the admin origin. Empty disables the second origin (the
+# portal then runs through the admin listener under an opaque sandbox).
+# The port must be reachable by browsers alongside the admin port — when the
+# admin UI is reached via a port-mapped forward (ssh -L / docker -p), forward
+# this port too with the same offset (e.g. 18090 -> 8090 plus 18091 -> 8091).
+portal-proxy-listen: "0.0.0.0:8091"
+
 # Password for the Power section (reboot / power off from the web UI).
 # Empty = section hidden. Non-root installs need deploy/sudoers/nm-webui-power
 # installed (deploy/install.sh does it automatically); see README.

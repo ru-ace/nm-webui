@@ -78,14 +78,14 @@ func doPowerPost(t *testing.T, base, body string) (int, string) {
 	return resp.StatusCode, buf.String()
 }
 
-func doFeaturesGet(t *testing.T, base string) map[string]bool {
+func doFeaturesGet(t *testing.T, base string) map[string]interface{} {
 	t.Helper()
 	resp, err := http.Get(base + "/system/features")
 	if err != nil {
 		t.Fatalf("features get: %v", err)
 	}
 	defer resp.Body.Close()
-	var out map[string]bool
+	var out map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatalf("features decode: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestSystemFeaturesPowerEnabled(t *testing.T) {
 	defer srv.Close()
 
 	feat := doFeaturesGet(t, srv.URL)
-	if !feat["power"] {
+	if v, _ := feat["power"].(bool); !v {
 		t.Fatalf("features = %v, want power=true", feat)
 	}
 }
@@ -109,8 +109,53 @@ func TestSystemFeaturesPowerDisabled(t *testing.T) {
 	defer srv.Close()
 
 	feat := doFeaturesGet(t, srv.URL)
-	if feat["power"] {
+	if v, _ := feat["power"].(bool); v {
 		t.Fatalf("features = %v, want power=false", feat)
+	}
+}
+
+func TestSystemFeaturesPortalProxyBase(t *testing.T) {
+	// A helper that fetches features with a pinned Host header (unit servers
+	// bind a random port, so the base derivation must not be tested through
+	// their ephemeral addresses).
+	getFeaturesWithHost := func(srv *httptest.Server, host string) map[string]interface{} {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/system/features", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Host = host
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var out map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	cfg := &config.Config{Listen: "0.0.0.0:8090", PortalProxyListen: "0.0.0.0:8091"}
+	srv := newPowerTestServer(t, cfg, &fakePower{})
+	defer srv.Close()
+
+	// Direct access on the admin port → 8091.
+	if base, _ := getFeaturesWithHost(srv, "192.168.1.5:8090")["portal_proxy_base"].(string); base != "http://192.168.1.5:8091" {
+		t.Fatalf("direct: portal_proxy_base = %q, want http://192.168.1.5:8091", base)
+	}
+	// Port-mapped forward → the offset carries over to the portal port.
+	if base, _ := getFeaturesWithHost(srv, "127.0.0.1:18090")["portal_proxy_base"].(string); base != "http://127.0.0.1:18091" {
+		t.Fatalf("forwarded: portal_proxy_base = %q, want http://127.0.0.1:18091", base)
+	}
+
+	// Disabled listener → empty base (the SPA falls back to the admin origin).
+	cfg2 := &config.Config{Listen: "0.0.0.0:8090"}
+	srv2 := newPowerTestServer(t, cfg2, &fakePower{})
+	defer srv2.Close()
+	if base, _ := getFeaturesWithHost(srv2, "192.168.1.5:8090")["portal_proxy_base"].(string); base != "" {
+		t.Fatalf("portal_proxy_base = %q, want empty when listener disabled", base)
 	}
 }
 

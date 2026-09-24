@@ -86,6 +86,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/system/captive-portal/check", s.handleCaptivePortalCheck)
 			r.Get("/captive-portal/proxy", s.handlePortalProxyGet)
 			r.Post("/captive-portal/proxy", s.handlePortalProxyPost)
+			r.Options("/captive-portal/proxy", s.handlePortalProxyOptions)
 			r.Get("/devices", s.handleDeviceList)
 			r.Get("/devices/{iface}", s.handleDeviceGet)
 			r.Get("/devices/{iface}/connections", s.handleDeviceConnections)

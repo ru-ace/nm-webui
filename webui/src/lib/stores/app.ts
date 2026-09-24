@@ -23,6 +23,14 @@ const pendingScans = new Map<string, { resolve: () => void; reject: (e: Error) =
 export const connectivityStatus = derived(systemStatus, ($s) => $s?.connectivity || 'unknown');
 export const isOnline = derived(connectivityStatus, ($c) => $c === 'online');
 
+/**
+ * Origin of the dedicated portal-proxy listener, taken from /system/features.
+ * Empty means the portal iframe runs on the admin's own origin (opaque
+ * sandbox); when set, the iframe gets its own origin and the sandbox adds
+ * allow-same-origin safely.
+ */
+export const portalProxyBase = derived(features, ($f) => $f?.portal_proxy_base || '');
+
 function setLoading(key: string, value: boolean) {
   loading.update(($l) => ({ ...$l, [key]: value }));
 }
