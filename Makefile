@@ -1,4 +1,4 @@
-.PHONY: all build webui webui-dev clean cross-arm64 cross-amd64 install uninstall deb rpm test lint vet screenshots
+.PHONY: all build webui webui-dev clean cross-arm64 cross-amd64 install uninstall deb rpm test lint vet screenshots release-push
 
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -50,6 +50,26 @@ release: clean
 	@mkdir -p $(DIST_DIR)
 	$(MAKE) cross
 	cd $(DIST_DIR) && sha256sum $(BINARY)-linux-* > checksums.txt
+
+# Push a release — main first, then the tag. Fails unless the tag points at
+# the tip of main, so the branch and the release never diverge.
+release-push:
+	@if [ -z "$(TAG)" ]; then \
+		echo "usage: make release-push TAG=v1.2.0"; \
+		exit 1; \
+	fi; \
+	tag_commit="$$(git rev-parse --verify -q '$(TAG)^{commit}' 2>/dev/null)"; \
+	main_commit="$$(git rev-parse main)"; \
+	if [ -z "$$tag_commit" ]; then \
+		echo "error: tag $(TAG) does not exist"; \
+		exit 1; \
+	fi; \
+	if [ "$$tag_commit" != "$$main_commit" ]; then \
+		echo "error: $(TAG) points at $$tag_commit, not the tip of main ($$main_commit)"; \
+		exit 1; \
+	fi; \
+	git push origin main && \
+	git push origin $(TAG)
 
 # Install locally
 install: build
@@ -140,6 +160,7 @@ help:
 	@echo "  cross-arm64    - Cross-compile for Linux ARM64"
 	@echo "  cross-amd64    - Cross-compile for Linux AMD64"
 	@echo "  release        - Build release binaries with checksums"
+	@echo "  release-push   - Push main then the release tag (validates the tag)"
 	@echo "  install        - Install binary, systemd unit, config"
 	@echo "  uninstall      - Remove installed files"
 	@echo "  deb            - Build Debian packages (ARM64 + AMD64)"
