@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The portal HTML proxy keeps a canonical `<base href="/">` instead of
   dropping it, so framework SPAs (e.g. Angular): captive portals that refused
   to bootstrap in the mini-browser ("No base href set") now boot
+- "Open in new tab" on the portal page now asks how to open: through the
+  router proxy (default) or the portal URL directly — direct mode is required
+  for OAuth/SPA portals that cannot run through the HTML proxy
 - Captive-portal detection is now fully self-owned and probe-driven:
   NetworkManager verdicts are no longer used for portal detection — it stays
   only as a link-level fallback and a recheck trigger. A background monitor

@@ -29,9 +29,13 @@
   let busy = false;
   let errorMessage = '';
   // "Open in new tab" bypasses the iframe sandbox (opaque origin), so it must
-  // be explicitly re-confirmed every time.
+  // be explicitly re-confirmed every time. Two modes: proxy (default, portal
+  // hostname resolved by the router) and direct (browser resolves over the
+  // router's WAN — required for OAuth/SPA portals that cannot run through
+  // the HTML proxy).
   let confirmOpenTab = false;
   let openTabConfirmed = false;
+  let openTabMode: 'proxy' | 'direct' = 'proxy';
   let onlineNotice = false;
 
   function isHttp(target: string): boolean {
@@ -139,6 +143,7 @@
 
   function requestOpenTab() {
     if (!currentUrl) return;
+    openTabMode = 'proxy';
     openTabConfirmed = false;
     confirmOpenTab = true;
   }
@@ -150,8 +155,9 @@
 
   function doOpenTab() {
     if (!openTabConfirmed || !currentUrl) return;
-    // noopener+noreferrer keep the opened proxy page detached from this window.
-    window.open(proxyUrl(currentUrl), '_blank', 'noopener,noreferrer');
+    // noopener+noreferrer keep the opened page detached from this window.
+    const target = openTabMode === 'direct' ? currentUrl : proxyUrl(currentUrl);
+    window.open(target, '_blank', 'noopener,noreferrer');
     confirmOpenTab = false;
     openTabConfirmed = false;
   }
@@ -317,11 +323,32 @@
         <div>
           <h3 class="font-bold text-lg">Open in a new tab?</h3>
           <p class="text-sm text-base-content/70 mt-1">
-            The page will open <span class="font-semibold">outside the sandbox</span> in a new tab,
-            so its scripts run with the same access to this admin interface as this window.
-            Only open pages you trust.
+            The page will open <span class="font-semibold">outside the sandbox</span>, so its scripts
+            run with the same access to this admin interface as this window. Only open pages you trust.
           </p>
         </div>
+      </div>
+      <div class="mt-4 grid gap-2" role="radiogroup" aria-label="How to open">
+        <label class="flex items-start gap-3 cursor-pointer border border-base-300 rounded-lg p-3 hover:bg-base-200/50 {openTabMode === 'proxy' ? 'border-primary' : ''}">
+          <input type="radio" name="portal-open-mode" class="radio radio-sm mt-0.5" checked={openTabMode === 'proxy'} onchange={() => { openTabMode = 'proxy'; openTabConfirmed = false; }} />
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold">Through the router proxy</span>
+            <span class="block text-xs text-base-content/60 mt-0.5">
+              The router resolves the portal hostname and relays the page. Default — works for
+              login-form portals that do not require their own backend access from the browser.
+            </span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 cursor-pointer border border-base-300 rounded-lg p-3 hover:bg-base-200/50 {openTabMode === 'direct' ? 'border-primary' : ''}">
+          <input type="radio" name="portal-open-mode" class="radio radio-sm mt-0.5" checked={openTabMode === 'direct'} onchange={() => { openTabMode = 'direct'; openTabConfirmed = false; }} />
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold">Open the portal URL directly</span>
+            <span class="block text-xs text-base-content/60 mt-0.5">
+              Your browser connects to the portal host over the router's network. Required for
+              OAuth/SPA portals (e.g. operator modems) that cannot run through the HTML proxy.
+            </span>
+          </span>
+        </label>
       </div>
       <label class="flex items-start gap-2 mt-4 cursor-pointer">
         <input type="checkbox" bind:checked={openTabConfirmed} class="checkbox checkbox-sm mt-0.5" />
