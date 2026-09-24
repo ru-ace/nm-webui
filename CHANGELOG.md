@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-24
+
 ### Added
 
 - Hidden Wi-Fi networks: the profile form gains a "hidden" option (SSID is
@@ -172,7 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - External IP provider switched to `api64.ipify.org`
 - Documentation overhaul
 
-[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/ru-ace/nm-webui/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/ru-ace/nm-webui/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/ru-ace/nm-webui/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ru-ace/nm-webui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ru-ace/nm-webui/releases/tag/v1.0.0
