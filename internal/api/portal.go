@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -137,7 +138,7 @@ func (s *Server) handlePortalProxyGet(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "missing url parameter")
 		return
 	}
-	s.servePortalFetch(w, r, http.MethodGet, target, nil)
+	s.servePortalFetch(w, r, http.MethodGet, target, nil, nil)
 }
 
 // handlePortalProxyOptions answers CORS preflights for the portal proxy
@@ -164,7 +165,14 @@ func (s *Server) handlePortalProxyPost(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "malformed form")
 		return
 	}
+	// The SPA's fetch/XHR shim always carries the target in the query (its
+	// proxyURL builds "/api/v1/captive-portal/proxy?url=..."), while rewritten
+	// form submissions put it in the body (hidden url field). Accept both; the
+	// body gets precedence just in case a form ever echoes a url field.
 	target := r.PostFormValue("url")
+	if target == "" {
+		target = r.FormValue("url")
+	}
 	if target == "" {
 		writeErr(w, http.StatusBadRequest, "missing url parameter")
 		return
@@ -176,13 +184,22 @@ func (s *Server) handlePortalProxyPost(w http.ResponseWriter, r *http.Request) {
 		method = http.MethodGet
 	}
 	form.Del("_method")
-	s.servePortalFetch(w, r, method, target, form)
+	// Non-form payloads (JSON API calls) are passed through verbatim; form
+	// bodies are already parsed above and re-folded by FetchPortal.
+	var rawBody []byte
+	if ct := strings.ToLower(r.Header.Get("Content-Type")); ct != "" &&
+		!strings.HasPrefix(ct, "application/x-www-form-urlencoded") &&
+		!strings.HasPrefix(ct, "multipart/form-data") && r.Body != nil {
+		rawBody, _ = io.ReadAll(io.LimitReader(r.Body, system.PortalProxyMaxDoc+1))
+	}
+	s.servePortalFetch(w, r, method, target, form, rawBody)
 }
 
-func (s *Server) servePortalFetch(w http.ResponseWriter, r *http.Request, method, target string, form url.Values) {
+func (s *Server) servePortalFetch(w http.ResponseWriter, r *http.Request, method, target string, form url.Values, rawBody []byte) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	body, ct, finalURL, status, err := s.portal.FetchPortal(ctx, method, target, form)
+	fwd := &system.PortalForward{Headers: r.Header, Body: rawBody}
+	body, ct, finalURL, status, err := s.portal.FetchPortal(ctx, method, target, form, fwd)
 	if err != nil {
 		slog.Warn("portal fetch failed", "url", target, "err", err)
 		writeErr(w, http.StatusBadGateway, "portal fetch failed: "+err.Error())

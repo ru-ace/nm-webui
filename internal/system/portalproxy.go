@@ -3,6 +3,7 @@ package system
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,15 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
+// portalShimScript is the fetch/XHR routing shim injected into proxied portal
+// documents before the app's scripts run (see portalshim.js). Besides fetch
+// and XMLHttpRequest it patches HTMLScriptElement.src so webpack/rollup lazy
+// chunks (dynamic import(), which the browser module loader fetches outside
+// fetch/XHR) are routed through the proxy as well.
+//
+//go:embed portalshim.js
+var portalShimScript string
+
 // PortalProxyMaxDoc limits the size of proxied documents (HTML pages and
 // pass-through resources).
 const PortalProxyMaxDoc = 8 << 20 // 8 MiB
@@ -21,6 +31,56 @@ const PortalProxyMaxDoc = 8 << 20 // 8 MiB
 // ProxyBase is the API endpoint the portal browser calls back to. Rewritten
 // URLs in proxied documents point here.
 const ProxyBase = "/api/v1/captive-portal/proxy"
+
+// portalForwardHeaderNames are the client request headers worth passing
+// upstream for content negotiation and the SPA's own authentication. They are
+// replaced on the upstream request, overriding the proxy's defaults where the
+// client set them. Cookie, Referer, Origin and friends are deliberately never
+// forwarded -- the proxy must not leak the browser's session or tell upstream
+// where the page came from.
+var portalForwardHeaderNames = []string{
+	"Accept",
+	"Accept-Language",
+	"Authorization",
+}
+
+// PortalForward carries the client-side request context that has to reach the
+// upstream service through FetchPortal: the whitelisted browser headers plus
+// an optional raw body for non-form POST payloads (JSON API calls). Nil means
+// "no forwarding": the proxy uses its own defaults.
+type PortalForward struct {
+	Headers http.Header
+	Body    []byte
+}
+
+// forwardPortalHeaders copies the client headers that matter for upstream
+// content negotiation and SPA authentication onto the upstream request. The
+// custom X-* namespace rides along for correlation/trace headers the SPA sends
+// (e.g. X-CorrelationId); X-Forwarded-* is skipped so a proxied page cannot
+// spoof front-proxy metadata.
+func forwardPortalHeaders(dst http.Header, fwd *PortalForward) {
+	if fwd == nil {
+		return
+	}
+	for _, name := range portalForwardHeaderNames {
+		if v := fwd.Headers.Get(name); v != "" {
+			dst.Set(name, v)
+		}
+	}
+	for k, vs := range fwd.Headers {
+		lower := strings.ToLower(k)
+		if strings.HasPrefix(lower, "x-") && !strings.HasPrefix(lower, "x-forwarded-") {
+			for _, v := range vs {
+				dst.Add(k, v)
+			}
+		}
+	}
+	if len(fwd.Body) > 0 {
+		if ct := fwd.Headers.Get("Content-Type"); ct != "" {
+			dst.Set("Content-Type", ct)
+		}
+	}
+}
 
 // proxyMethod contains the rewritten form helper markers injected into pages.
 const (
@@ -34,7 +94,12 @@ const (
 // links, forms, styles and images resolve back through the proxy; other
 // resources pass through untouched. Returns the body, the effective
 // Content-Type, the final URL after redirects and the upstream status.
-func (d *Detector) FetchPortal(ctx context.Context, method, target string, form url.Values) (body []byte, contentType string, finalURL string, status int, err error) {
+//
+// fwd optionally carries the client's request context: whitelisted headers
+// (Accept, Accept-Language, Authorization, X-*) replace the proxy's defaults
+// so upstream serves the format and grants the authentication the SPA asked
+// for, and a raw Body passes non-form POST payloads (JSON) through verbatim.
+func (d *Detector) FetchPortal(ctx context.Context, method, target string, form url.Values, fwd *PortalForward) (body []byte, contentType string, finalURL string, status int, err error) {
 	u, err := validateURL(target)
 	if err != nil {
 		return nil, "", "", 0, err
@@ -54,21 +119,22 @@ func (d *Detector) FetchPortal(ctx context.Context, method, target string, form 
 		}
 	}
 
-	var req *http.Request
-	if method == http.MethodPost && form != nil {
-		req, err = http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(form.Encode()))
-		if err != nil {
-			return nil, "", "", 0, err
-		}
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	} else {
-		req, err = http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-		if err != nil {
-			return nil, "", "", 0, err
-		}
+	var bodyReader io.Reader
+	if fwd != nil && len(fwd.Body) > 0 {
+		bodyReader = bytes.NewReader(fwd.Body)
+	} else if method == http.MethodPost && form != nil {
+		bodyReader = strings.NewReader(form.Encode())
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), bodyReader)
+	if err != nil {
+		return nil, "", "", 0, err
 	}
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; nm-webui) AppleWebKit/537.36 (KHTML, like Gecko) nm-webui-portal/1.0")
+	forwardPortalHeaders(req.Header, fwd)
+	if method == http.MethodPost && form != nil && (fwd == nil || len(fwd.Body) == 0) {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
@@ -156,8 +222,10 @@ var skipURLPrefixes = []string{"javascript:", "mailto:", "tel:", "data:", "about
 // When allowJS is false, <script> elements and inline event-handler
 // attributes (on*) plus srcdoc are stripped as well — nothing executable
 // survives, which is the safe mode for unknown renderers. When allowJS is
-// true, scripts and handlers are kept for the sandboxed-iframe renderer and a
-// small telemetry snippet is injected so the SPA can track navigation.
+// true, scripts and handlers are kept for the sandboxed-iframe renderer; a
+// fetch/XHR routing shim is injected before the app's scripts (so requests
+// the SPA makes land on the real portal through the proxy instead of 404ing
+// on this listener) and a small telemetry snippet reports navigation.
 func RewritePortalHTML(doc []byte, baseURL string, allowJS bool) ([]byte, error) {
 	base, err := validateURL(baseURL)
 	if err != nil {
@@ -272,6 +340,17 @@ func RewritePortalHTML(doc []byte, baseURL string, allowJS bool) ([]byte, error)
 			})
 		}
 		if body := findElement(root, "body"); body != nil {
+			// The fetch/XHR shim must be the first thing in <body>: it runs
+			// synchronously while the parser is still ahead of the app's
+			// deferred module scripts, so the SPA's network layer is patched
+			// before it boots. It routes app fetch/XHR requests to the proxy
+			// endpoint of this listener (see portalshim.js).
+			body.InsertBefore(&html.Node{
+				Type: html.ElementNode, Data: "script",
+				FirstChild: &html.Node{
+					Type: html.TextNode, Data: portalShimScript,
+				},
+			}, body.FirstChild)
 			body.AppendChild(&html.Node{
 				Type: html.ElementNode, Data: "script",
 				FirstChild: &html.Node{

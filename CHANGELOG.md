@@ -22,6 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The proxied portal page injects a fetch/XHR routing shim before the app's
+  scripts run: with `<base href="/">` pointing every app request at the portal
+  listener, the SPA's own `fetch`/`XMLHttpRequest` calls (config.json, OAuth
+  discovery, API calls) would die with 404/CORS on the listener's origin. The
+  shim reroutes them through the proxy endpoint — relative URLs are rebased
+  onto the real portal site via the `nm-final-url` marker, absolute
+  cross-origin URLs are proxied as-is, non-HTTP schemes and the proxy endpoint
+  itself pass through untouched. Angular/Keycloak-style SPAs can now actually
+  boot in the sandboxed iframe
+- The portal proxy now forwards the browser's request headers to the upstream
+  service — `Accept`, `Accept-Language`, `Authorization` and the SPA's own
+  `X-*` headers (e.g. `X-CorrelationId`) — and passes non-form POST payloads
+  (JSON API calls) through verbatim, so upstream serves the format and grants
+  the authentication the SPA asked for; `Cookie`/`Referer`/`Origin` and
+  `X-Forwarded-*` are never forwarded, and the proxy target is read from both
+  the query and the form body
+- Lazy-loaded route chunks (webpack/rollup dynamic `import()`) no longer 404 in
+  the portal mini-browser: the shim patches the `HTMLScriptElement.src` setter,
+  which the browser's module loader uses to fetch chunks, and rebases chunk
+  URLs through the proxy; relative URL resolution in the shim now follows the
+  document base (`<base href="/">`) instead of `location.href`
 - The portal HTML proxy keeps a canonical `<base href="/">` instead of
   dropping it, so framework SPAs (e.g. Angular): captive portals that refused
   to bootstrap in the mini-browser ("No base href set") now boot

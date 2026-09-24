@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -47,7 +48,8 @@ func TestRewritePortalHTML(t *testing.T) {
 	s := string(out)
 
 	for _, gone := range []string{"window.bad", "javascript:void(0)", "onerror", "onclick",
-		"<iframe", "<object", "<embed", "formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\""} {
+		"<iframe", "<object", "<embed", "formaction", "formmethod", "formtarget", "srcdoc", "target=\"_blank\"",
+		"__nmPortalShim"} {
 		if strings.Contains(s, gone) {
 			t.Errorf("rewritten page still contains %q", gone)
 		}
@@ -118,12 +120,15 @@ func TestRewritePortalHTMLAllowJS(t *testing.T) {
 	if !strings.Contains(s, "__nmPortal") || !strings.Contains(s, "postMessage") {
 		t.Errorf("telemetry script not injected:\n%s", s)
 	}
-	if !strings.Contains(s, `name="nm-final-url"`) ||
-		!strings.Contains(s, `content="`+portalOrigin+`/portal/index.html"`) {
-		t.Errorf("final-url meta marker not injected:\n%s", s)
+	if !strings.Contains(s, "__nmPortalShim") {
+		t.Errorf("fetch/xhr shim not injected:\n%s", s)
 	}
 	if !strings.Contains(s, "finalUrl") {
 		t.Errorf("telemetry does not report finalUrl:\n%s", s)
+	}
+	if !strings.Contains(s, `name="nm-final-url"`) ||
+		!strings.Contains(s, `content="`+portalOrigin+`/portal/index.html"`) {
+		t.Errorf("final-url meta marker not injected:\n%s", s)
 	}
 	wantLink := `href="` + ProxyBase + `?url=http%3A%2F%2F192.168.1.1%2Flogin%3Fx%3D1"`
 	if !strings.Contains(s, wantLink) {
@@ -163,6 +168,133 @@ func TestRewritePortalBaseCanonicalised(t *testing.T) {
 	}
 }
 
+// TestPortalShimRunsBeforeAppScripts proves the fetch/XHR shim is injected as
+// the first child of <body>, ahead of the app's module scripts, and that the
+// rewrite stays idempotent: the shim comes before every script the app ships.
+func TestPortalShimRunsBeforeAppScripts(t *testing.T) {
+	in := `<html><head><base href="/"></head><body><app-root></app-root>` +
+		`<script type="module" src="runtime/main.js"></script>` +
+		`<script type="module" src="polyfills/main.js"></script>` +
+		`<script type="module" src="main/main.js"></script>` +
+		`</body></html>`
+	out, err := RewritePortalHTML([]byte(in), portalOrigin+"/portal/index.html", true)
+	if err != nil {
+		t.Fatalf("rewrite: %v", err)
+	}
+	s := string(out)
+
+	body := s[strings.Index(s, "<body"):]
+	iShim := strings.Index(body, "__nmPortalShim")
+	// Script srcs are rewritten to proxy URLs, so the app chunk paths arrive
+	// with encoded slashes (runtime%2Fmain.js).
+	iRuntime := strings.Index(body, "runtime%2Fmain.js")
+	iPoly := strings.Index(body, "polyfills%2Fmain.js")
+	iMain := strings.Index(body, "%2Fmain%2Fmain.js")
+	if iShim < 0 {
+		t.Fatalf("shim missing from body:\n%s", s)
+	}
+	if iShim > iRuntime || iShim > iPoly || iShim > iMain {
+		t.Errorf("shim must precede app module scripts (shim at %d, runtime %d, polyfills %d, main %d):\n%s",
+			iShim, iRuntime, iPoly, iMain, s)
+	}
+	if strings.Count(s, "if (window.__nmPortalShim) return;") != 1 {
+		t.Errorf("shim injected more than once:\n%s", s)
+	}
+
+	// The shim must only fire once even if the script somehow runs again.
+	if !strings.Contains(s, "if (window.__nmPortalShim) return;") {
+		t.Errorf("shim lacks idempotency guard:\n%s", s)
+	}
+	// Lazy module chunks (dynamic import()) are fetched by the browser's
+	// module loader past fetch/XHR, so the shim also patches the
+	// HTMLScriptElement.src setter to reroute them through the proxy; relative
+	// URLs resolve against the canonical <base href="/"> document base.
+	for _, marker := range []string{"HTMLScriptElement.prototype", "docBaseURL", "Object.defineProperty(ScriptProto, \"src\""} {
+		if !strings.Contains(s, marker) {
+			t.Errorf("shim lacks chunk-loading patch (%q):\n%s", marker, s)
+		}
+	}
+	if !strings.Contains(s, `name="nm-final-url"`) {
+		t.Errorf("final-url meta marker missing for shim rebasing:\n%s", s)
+	}
+}
+
+// TestFetchPortalForwardsRequestHeaders proves the client's request context
+// reaches the upstream service: Accept overrides the proxy default so the API
+// content-negotiates the format the SPA asked for, and the SPA's own
+// authentication/correlation headers (Authorization, X-CorrelationId) ride
+// along. Cookie must not be forwarded -- the proxy session is the host's own.
+func TestFetchPortalForwardsRequestHeaders(t *testing.T) {
+	var gotAccept, gotAuth, gotCorr, gotCookie string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAccept = r.Header.Get("Accept")
+		gotAuth = r.Header.Get("Authorization")
+		gotCorr = r.Header.Get("X-CorrelationId")
+		gotCookie = r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	d := newTestDetector()
+	hdr := http.Header{}
+	hdr.Set("Accept", "application/json, text/plain, */*")
+	hdr.Set("Authorization", "Bearer tok123")
+	hdr.Set("X-CorrelationId", "corr-42")
+	hdr.Set("Cookie", "sid=secret")
+	_, _, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/api", nil, &PortalForward{Headers: hdr})
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if gotAccept != "application/json, text/plain, */*" {
+		t.Errorf("Accept = %q, want SPA Accept forwarded", gotAccept)
+	}
+	if gotAuth != "Bearer tok123" {
+		t.Errorf("Authorization = %q, want forwarded", gotAuth)
+	}
+	if gotCorr != "corr-42" {
+		t.Errorf("X-CorrelationId = %q, want forwarded", gotCorr)
+	}
+	if gotCookie != "" {
+		t.Errorf("Cookie = %q, must not be forwarded", gotCookie)
+	}
+}
+
+// TestFetchPortalForwardsRawJSONBody proves non-form POST payloads (JSON API
+// calls made by the SPA) pass through to the upstream verbatim with their
+// original Content-Type preserved.
+func TestFetchPortalForwardsRawJSONBody(t *testing.T) {
+	var gotBody, gotCT, gotMethod string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		gotCT = r.Header.Get("Content-Type")
+		gotMethod = r.Method
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	d := newTestDetector()
+	hdr := http.Header{}
+	hdr.Set("Content-Type", "application/json;charset=UTF-8")
+	fwd := &PortalForward{Headers: hdr, Body: []byte(`{"product":"free-internet"}`)}
+	if _, _, _, status, err := d.FetchPortal(context.Background(), http.MethodPost, srv.URL+"/api", nil, fwd); err != nil {
+		t.Fatalf("fetch: %v", err)
+	} else if status != http.StatusOK {
+		t.Fatalf("status = %d", status)
+	}
+	if gotMethod != http.MethodPost {
+		t.Errorf("method = %q, want POST", gotMethod)
+	}
+	if gotCT != "application/json;charset=UTF-8" {
+		t.Errorf("Content-Type = %q, want preserved", gotCT)
+	}
+	if gotBody != `{"product":"free-internet"}` {
+		t.Errorf("body = %q, want passed through verbatim", gotBody)
+	}
+}
+
 func TestFetchPortalRewritesHTMLAndHeaders(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -171,7 +303,7 @@ func TestFetchPortalRewritesHTMLAndHeaders(t *testing.T) {
 	defer srv.Close()
 
 	d := newTestDetector()
-	body, ct, finalURL, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL, nil)
+	body, ct, finalURL, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL, nil, nil)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
@@ -207,7 +339,7 @@ func TestFetchPortalFollowsRedirects(t *testing.T) {
 	defer srv.Close()
 
 	d := newTestDetectorJS()
-	body, _, finalURL, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/", nil)
+	body, _, finalURL, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/", nil, nil)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
@@ -236,7 +368,7 @@ func TestFetchPortalPassThroughNonHTML(t *testing.T) {
 	defer srv.Close()
 
 	d := newTestDetector()
-	body, ct, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL, nil)
+	body, ct, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL, nil, nil)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
@@ -269,10 +401,10 @@ func TestFetchPortalSessionCookieSurvives(t *testing.T) {
 
 	d := newTestDetector()
 	ctx := context.Background()
-	if _, _, _, _, err := d.FetchPortal(ctx, http.MethodPost, srv.URL+"/login", url.Values{"user": {"bob"}}); err != nil {
+	if _, _, _, _, err := d.FetchPortal(ctx, http.MethodPost, srv.URL+"/login", url.Values{"user": {"bob"}}, nil); err != nil {
 		t.Fatalf("post: %v", err)
 	}
-	body, _, _, _, err := d.FetchPortal(ctx, http.MethodGet, srv.URL+"/welcome", nil)
+	body, _, _, _, err := d.FetchPortal(ctx, http.MethodGet, srv.URL+"/welcome", nil, nil)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -292,7 +424,7 @@ func TestFetchPortalIgnoresSelfSignedTLS(t *testing.T) {
 	defer srv.Close()
 
 	d := newTestDetector()
-	body, _, _, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/page", nil)
+	body, _, _, status, err := d.FetchPortal(context.Background(), http.MethodGet, srv.URL+"/page", nil, nil)
 	if err != nil {
 		t.Fatalf("fetch over self-signed TLS: %v", err)
 	}
@@ -306,10 +438,10 @@ func TestFetchPortalIgnoresSelfSignedTLS(t *testing.T) {
 
 func TestFetchPortalRejectsBadScheme(t *testing.T) {
 	d := newTestDetector()
-	if _, _, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, "file:///etc/passwd", nil); err == nil {
+	if _, _, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, "file:///etc/passwd", nil, nil); err == nil {
 		t.Fatal("expected error for file:// target")
 	}
-	if _, _, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, "javascript:alert(1)", nil); err == nil {
+	if _, _, _, _, err := d.FetchPortal(context.Background(), http.MethodGet, "javascript:alert(1)", nil, nil); err == nil {
 		t.Fatal("expected error for javascript: target")
 	}
 }

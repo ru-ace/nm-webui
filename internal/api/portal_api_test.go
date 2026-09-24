@@ -161,6 +161,51 @@ func TestPortalProxyPostMissingURL(t *testing.T) {
 	}
 }
 
+// The SPA's fetch/XHR shim sends POSTs to the proxy with the target in the
+// query (proxyURL builds "/api/v1/captive-portal/proxy?url=..."); JSON bodies
+// and the SPA's own Authentication/API headers must reach the upstream.
+func TestPortalProxyPostJSONFromQuery(t *testing.T) {
+	var gotBody, gotCT, gotAuth string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		gotCT = r.Header.Get("Content-Type")
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer up.Close()
+
+	srv := newPortalOnlyTestServer(t)
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/captive-portal/proxy?url="+url.QueryEscape(up.URL+"/api"),
+		strings.NewReader(`{"product":"free-internet"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json;charset=UTF-8")
+	req.Header.Set("Authorization", "Bearer tok999")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("json post: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, body: %s", resp.StatusCode, body)
+	}
+	if gotBody != `{"product":"free-internet"}` {
+		t.Errorf("upstream body = %q, want passthrough", gotBody)
+	}
+	if gotCT != "application/json;charset=UTF-8" {
+		t.Errorf("upstream content-type = %q", gotCT)
+	}
+	if gotAuth != "Bearer tok999" {
+		t.Errorf("upstream Authorization = %q, want forwarded", gotAuth)
+	}
+}
+
 func portalUpstream(t *testing.T) *httptest.Server {
 	t.Helper()
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
