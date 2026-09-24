@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe, so the UI reports `online` right after sign-in instead of waiting for
   NetworkManager's periodic check; a manual recheck forces both NetworkManager's
   check and a fresh probe
+- Wi-Fi table badges (Saved / Hidden / AP count) are now icon-based on mobile,
+  with text labels retained on desktop widths
 
 ### Fixed
 

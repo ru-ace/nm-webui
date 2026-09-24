@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Wifi, Loader2, Lock, Unlock, Shield, SignalHigh, SignalLow, RefreshCw } from '@lucide/svelte';
+  import { Wifi, Loader2, Lock, Unlock, Shield, SignalHigh, SignalLow, RefreshCw, SaveCheck, EyeOff, RadioTower } from '@lucide/svelte';
   import {
     devices,
     wifiNetworks,
@@ -230,13 +230,23 @@
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="truncate font-medium">{network.ssid || '(hidden)'}</span>
                       {#if network.saved}
-                        <span class="badge badge-ghost badge-xs shrink-0">Saved</span>
+                        <span class="badge badge-ghost badge-xs shrink-0 gap-1" title="Saved network">
+                          <SaveCheck class="h-3 w-3" />
+                          <span class="hidden lg:inline">Saved</span>
+                        </span>
                       {/if}
                       {#if network.saved && network.hidden}
-                        <span class="badge badge-neutral badge-xs shrink-0" title="Hidden network">Hidden</span>
+                        <span class="badge badge-neutral badge-xs shrink-0 gap-1" title="Hidden network">
+                          <EyeOff class="h-3 w-3" />
+                          <span class="hidden lg:inline">Hidden</span>
+                        </span>
                       {/if}
                       {#if network.bssids && network.bssids.length > 1}
-                        <span class="badge badge-ghost badge-xs shrink-0">{network.bssids.length} APs</span>
+                        <span class="badge badge-ghost badge-xs shrink-0 gap-1" title="{network.bssids.length} access points">
+                          <RadioTower class="h-3 w-3" />
+                          <span>{network.bssids.length}</span>
+                          <span class="hidden lg:inline"> APs</span>
+                        </span>
                       {/if}
                     </div>
                   </td>
